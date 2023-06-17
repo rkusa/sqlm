@@ -1,0 +1,16 @@
+[package]
+name = "sqlm"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    "core",
+    "duckdb",
+    "macros",
+]
+
+[dependencies]
+sqlm-core = { path = "./core", version = "0.1" }
+sqlm-macros = { path = "./macros", version = "0.1" }
+tokio-postgres = "0.7"
