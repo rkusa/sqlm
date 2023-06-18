@@ -2,6 +2,7 @@ use std::future::{Future, IntoFuture};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Instant;
 use std::{env, error, fmt, mem};
 
 pub use duckdb;
@@ -15,20 +16,27 @@ use tokio::task::{self, JoinHandle};
 static POOL: OnceCell<Pool<DuckdbConnectionManager>> = OnceCell::new();
 
 pub fn connect() -> Result<PooledConnection<DuckdbConnectionManager>, Error> {
+    // Don't trace connect, as this would create an endless loop of connecting again and
+    // again when persisting the connect trace!
     let pool = POOL.get_or_try_init(|| {
-        Ok::<_, Error>(
-            Pool::new(
-                DuckdbConnectionManager::file(
-                    env::var("DATABASE_PATH")
-                        .as_deref()
-                        .unwrap_or("./db.duckdb"),
-                )
-                .unwrap(),
+        let start = Instant::now();
+        let span = tracing::trace_span!("create connection pool");
+        let _enter = span.enter();
+        let pool = Pool::new(
+            DuckdbConnectionManager::file(
+                env::var("DATABASE_PATH")
+                    .as_deref()
+                    .unwrap_or("./db.duckdb"),
             )
             .unwrap(),
         )
+        .unwrap();
+        tracing::debug!(duration = ?start.elapsed(), "connection pool created");
+        Ok::<_, Error>(pool)
     })?;
-    Ok(pool.get()?)
+    let conn = pool.get()?;
+    conn.flush_prepared_statement_cache();
+    Ok(conn)
 }
 
 pub struct Sql<'a, T = ()> {
