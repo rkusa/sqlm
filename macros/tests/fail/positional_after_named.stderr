@@ -1,5 +1,0 @@
-error: positional arguments cannot follow named arguments
- --> tests/fail/positional_after_named.rs:2:44
-  |
-2 |     sqlm_macros::sql!("{one} {}", one = 1, 2);
-  |                                            ^

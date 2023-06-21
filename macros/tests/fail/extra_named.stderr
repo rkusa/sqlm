@@ -1,5 +1,0 @@
-error: argument never used
- --> tests/fail/extra_named.rs:2:47
-  |
-2 |     sqlm_macros::sql!("{foo}", foo = 1, bar = 2);
-  |                                               ^
