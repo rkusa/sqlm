@@ -1,0 +1,25 @@
+[package]
+name = "sqlm-postgres-macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[features]
+default = ["comptime"]
+comptime = ["postgres", "dotenvy"]
+
+[dependencies]
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+postgres = { version = "0.19", optional = true }
+dotenvy = { version = "0.15", optional = true }
+
+[dev-dependencies]
+trybuild = "1.0"
+sqlm-postgres = { path = "../postgres" }
+
+[build-dependencies]
+rustversion = "1.0"

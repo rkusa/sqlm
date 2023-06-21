@@ -1,0 +1,5 @@
+error: missing argument for index 1
+ --> tests/fail/missing_positional.rs:2:23
+  |
+2 |     sqlm_macros::sql!("foo{1} {}", "bar");
+  |                       ^^^^^^^^^^^
