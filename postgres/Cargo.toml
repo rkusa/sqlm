@@ -3,7 +3,12 @@ name = "sqlm-postgres"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["comptime"]
+comptime = ["sqlm-postgres-macros/comptime"]
+
 [dependencies]
+sqlm-postgres-macros = { path = "../postgres-macros", default-features = false }
 tokio-postgres-rustls = "0.10"
 tokio-postgres = "0.7"
 deadpool-postgres = "0.10"
@@ -12,7 +17,6 @@ rustls = "0.21"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlm-postgres-macros = { path = "../postgres-macros", default-features = false, features = ["comptime"] }
 tokio = { version = "1.0", features = ["macros"] }
 
 [build-dependencies]

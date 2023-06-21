@@ -18,6 +18,8 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use row::{AnyCols, FromRow, HasColumn, Row};
+pub use sqlm_postgres_macros::{sql, FromRow};
+pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::NoTls;
@@ -75,32 +77,14 @@ pub struct Sql<'a, Cols, T = ()> {
 
 #[cfg(test)]
 mod tests {
-    use sqlm_postgres_macros::sql;
-
-    use crate::row::{FromRow, Row};
-    use crate::HasColumn;
+    use crate::{sql, FromRow};
 
     #[tokio::test]
-    async fn from_row() {
-        #[derive(Debug, PartialEq, Eq)]
+    async fn test_from_row() {
+        #[derive(Debug, PartialEq, Eq, FromRow)]
         struct User {
             id: i64,
             name: String,
-        }
-
-        impl<Cols> FromRow<Cols> for User
-        where
-            Cols: HasColumn<i64, "id">,
-            Cols: HasColumn<String, "name">,
-            // Cols: HasColumn<String, 3546873949167855552>,
-            // Cols: HasColumn<i64, 6898215271518772730>,
-        {
-            fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error> {
-                Ok(User {
-                    id: row.try_get("id")?,
-                    name: row.try_get("name")?,
-                })
-            }
         }
 
         // impl FromRow<AnyCols> for User {
@@ -121,6 +105,37 @@ mod tests {
             User {
                 id: 1,
                 name: "first".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_null_columns() {
+        #[derive(Debug, PartialEq, Eq, FromRow)]
+        struct UserNotNullName {
+            id: i64,
+            name: String,
+        }
+
+        #[derive(Debug, PartialEq, Eq, FromRow)]
+        struct UserNullName {
+            id: i64,
+            name: Option<String>,
+        }
+
+        let user: UserNullName = sql!("SELECT id, name FROM users WHERE id = 2")
+            .await
+            .unwrap();
+        assert_eq!(user, UserNullName { id: 2, name: None });
+
+        let user: UserNotNullName = sql!("SELECT id, name FROM users WHERE id = 2")
+            .await
+            .unwrap();
+        assert_eq!(
+            user,
+            UserNotNullName {
+                id: 2,
+                name: "".to_string()
             }
         );
     }

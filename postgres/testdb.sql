@@ -1,6 +1,7 @@
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NULL
 );
 
 INSERT INTO users VALUES (DEFAULT, 'first');
+INSERT INTO users VALUES (DEFAULT, NULL);

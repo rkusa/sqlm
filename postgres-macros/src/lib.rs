@@ -1,6 +1,8 @@
 #![cfg_attr(nightly_column_names, feature(adt_const_params))]
 #![cfg_attr(nightly_column_names, allow(incomplete_features))]
 
+mod from_row;
+
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -12,6 +14,15 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{parse_macro_input, Expr, LitStr};
+
+#[proc_macro_derive(FromRow, attributes(sqlm))]
+pub fn derive_fromsql(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input);
+
+    from_row::expand_derive_from_row(input)
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
+}
 
 #[proc_macro]
 pub fn sql(item: TokenStream) -> TokenStream {
