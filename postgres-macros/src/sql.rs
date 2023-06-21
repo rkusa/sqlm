@@ -158,6 +158,8 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         }
     }
 
+    #[cfg(not(feature = "comptime"))]
+    let _ = opts; // prevent unused warning
     #[cfg(feature = "comptime")]
     if !opts.skip_query_check {
         use std::str::FromStr;

@@ -1,0 +1,67 @@
+name: Rust
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        toolchain: ["stable", "nightly"]
+        features: ["''", "comptime"]
+
+    services:
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: sqlm-test
+          POSTGRES_DB: sqlm-test
+          POSTGRES_PASSWORD: sqlm-test
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+        DATABASE_URL: postgresql://sqlm-test:sqlm-test@localhost/sqlm-test
+
+    steps:
+      - name: Add build dependencies
+        run: sudo apt-get install libpq-dev libudev-dev
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Populate test database
+        run: psql $DATABASE_URL < postgres/testdb.sql
+
+      - name: Install ${{matrix.toolchain}} toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{matrix.toolchain}}
+          override: true
+          components: rustfmt, clippy
+
+      - name: Build
+        run: cargo build --no-default-features --features ${{matrix.features}}
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Run clippy
+        run: cargo clippy --no-default-features --features ${{matrix.features}} --workspace --examples --tests -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt -- --check

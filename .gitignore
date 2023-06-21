@@ -1,5 +1,7 @@
 .*
 !.gitignore
+!.github
 !.rustfmt.toml
+!.env
 /target
 /Cargo.lock
