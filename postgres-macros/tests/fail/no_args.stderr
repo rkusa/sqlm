@@ -1,5 +1,5 @@
 error: missing argument for position 0
- --> tests/fail/no_args.rs:2:23
+ --> tests/fail/no_args.rs:2:32
   |
-2 |     sqlm_macros::sql!("foobar {}");
-  |                       ^^^^^^^^^^^
+2 |     sqlm_postgres_macros::sql!("foobar {}");
+  |                                ^^^^^^^^^^^

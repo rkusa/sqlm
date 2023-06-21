@@ -18,7 +18,7 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use row::{AnyCols, FromRow, HasColumn, Row};
-pub use sqlm_postgres_macros::{sql, FromRow};
+pub use sqlm_postgres_macros::{sql, sql_unchecked, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::types::ToSql;
@@ -77,6 +77,8 @@ pub struct Sql<'a, Cols, T = ()> {
 
 #[cfg(test)]
 mod tests {
+    use sqlm_postgres_macros::sql_unchecked;
+
     use crate::{sql, FromRow};
 
     #[tokio::test]
@@ -87,17 +89,29 @@ mod tests {
             name: String,
         }
 
-        // impl FromRow<AnyCols> for User {
-        //     fn from_row(row: Row<AnyCols>) -> Result<Self, tokio_postgres::Error> {
-        //         Ok(User {
-        //             id: row.try_get("id")?,
-        //             name: row.try_get("name")?,
-        //         })
-        //     }
-        // }
-
         let id = 1;
         let user: User = sql!("SELECT id, name FROM users WHERE id = {id}")
+            .await
+            .unwrap();
+        assert_eq!(
+            user,
+            User {
+                id: 1,
+                name: "first".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_from_row_unchecked() {
+        #[derive(Debug, PartialEq, Eq, FromRow)]
+        struct User {
+            id: i64,
+            name: String,
+        }
+
+        let id = 1i64;
+        let user: User = sql_unchecked!("SELECT id, name FROM users WHERE id = {id}")
             .await
             .unwrap();
         assert_eq!(

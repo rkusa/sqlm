@@ -1,3 +1,3 @@
 fn main() {
-    sqlm_macros::sql!("{id}");
+    sqlm_postgres_macros::sql_unchecked!("{id}");
 }

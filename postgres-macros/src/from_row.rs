@@ -21,8 +21,8 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let mut new_generics = generics.clone();
     new_generics.params.push(parse_quote!(Cols));
-    let (impl_generics, _, _) = new_generics.split_for_impl();
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
+    let (impl_generics_with_cols, _, _) = new_generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let mut where_predicates = where_clause
         .map(|w| w.predicates.clone())
         .unwrap_or_default();
@@ -69,11 +69,20 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics ::sqlm_postgres::FromRow<Cols> for #ident #ty_generics
+        impl #impl_generics_with_cols ::sqlm_postgres::FromRow<Cols> for #ident #ty_generics
         where
             #where_predicates
         {
             fn from_row(row: ::sqlm_postgres::Row<Cols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                Ok(Self {
+                    #(#field_assignments)*
+                })
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics ::sqlm_postgres::FromRow<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
+            fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::AnyCols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                 Ok(Self {
                     #(#field_assignments)*
                 })

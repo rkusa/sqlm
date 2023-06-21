@@ -1,5 +1,5 @@
 error: argument never used
- --> tests/fail/extra_arg.rs:2:32
+ --> tests/fail/extra_arg.rs:2:41
   |
-2 |     sqlm_macros::sql!("{}", 1, 2);
-  |                                ^
+2 |     sqlm_postgres_macros::sql!("{}", 1, 2);
+  |                                         ^

@@ -1,3 +1,3 @@
 fn main() {
-    sqlm_macros::sql!("{}", 1, 2);
+    sqlm_postgres_macros::sql!("{}", 1, 2);
 }
