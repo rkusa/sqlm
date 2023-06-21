@@ -10,6 +10,8 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{parse_macro_input, Expr, LitStr};
 
+use crate::parser::{self, Argument, Token};
+
 #[derive(Debug, Default)]
 pub struct Opts {
     pub skip_query_check: bool,
@@ -53,99 +55,89 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
     let mut next_arg = 0;
     let query = input.query.value();
     let mut result = String::with_capacity(query.len());
-    let mut pos = 0;
-    let mut start: Option<usize> = None;
     let mut parameters = Vec::new();
-    for (i, ch) in query.char_indices() {
-        if let Some(s) = start {
-            match ch {
-                // Escaped
-                '{' if i == s + 1 => {
-                    start = None;
-                }
-                '{' => {
-                    return syn::Error::new(input.query.span(), "unexpected `{`")
-                        .into_compile_error()
-                        .into();
-                }
-                '}' => {
-                    // TODO: track unused
-                    let ident = &query[s + 1..i];
-                    let index = if ident.is_empty() {
-                        let Some(param) = unnamed_arguments.get_mut(next_arg)
-                        else {
-                            return syn::Error::new(input.query.span(), format!("missing argument for position {next_arg}"))
-                                .into_compile_error()
-                                .into();
-                        };
-                        next_arg += 1;
-                        if let Some(index) = param.index {
-                            index
-                        } else {
-                            parameters.push(param.expr.to_token_stream());
-                            let index = parameters.len();
-                            param.index = Some(index);
-                            index
-                        }
-                    } else if let Ok(ix) = ident.parse::<usize>() {
-                        let Some(param) = unnamed_arguments.get_mut(ix)
-                        else {
-                            return syn::Error::new(input.query.span(), format!("missing argument for index {ix}"))
-                                .into_compile_error()
-                                .into();
-                        };
-                        if let Some(index) = param.index {
-                            index
-                        } else {
-                            parameters.push(param.expr.to_token_stream());
-                            let index = parameters.len();
-                            param.index = Some(index);
-                            index
-                        }
-                    } else if let Some(param) = named_arguments.get_mut(ident) {
-                        if let Some(index) = param.index {
-                            index
-                        } else {
-                            parameters.push(param.expr.to_token_stream());
-                            let index = parameters.len();
-                            param.index = Some(index);
-                            index
-                        }
-                    } else {
-                        match variable_arguments.entry(ident) {
-                            Entry::Occupied(e) => *e.get(),
-                            Entry::Vacant(e) => {
-                                let ident = format_ident!("{}", ident);
-                                parameters.push(ident.to_token_stream());
-                                let index = parameters.len();
-                                e.insert(index);
-                                index
-                            }
-                        }
-                    };
 
-                    write!(result, "${}", index).unwrap();
-                    pos = i + 1;
-                    start = None;
-                }
-                _ => {}
+    let Ok(tokens) = parser::parse(&query)
+    else {
+        return syn::Error::new(input.query.span(), "invalid format string")
+            .into_compile_error()
+            .into();
+    };
+
+    for token in tokens {
+        let index = match token {
+            Token::EscapedCurlyStart => {
+                result.push('{');
+                continue;
             }
-        } else {
-            match ch {
-                '{' => {
-                    start = Some(i);
-                    result.push_str(&query[pos..i]);
-                }
-                '}' => {
-                    return syn::Error::new(input.query.span(), "unexpected closing `}`")
+            Token::EscapedCurlyEnd => {
+                result.push('}');
+                continue;
+            }
+            Token::Text(text) => {
+                result.push_str(text);
+                continue;
+            }
+            Token::Argument(Argument::Next) => {
+                let Some(param) = unnamed_arguments.get_mut(next_arg)
+                else {
+                    return syn::Error::new(input.query.span(), format!("missing argument for position {next_arg}"))
                         .into_compile_error()
                         .into();
+                };
+                next_arg += 1;
+                if let Some(index) = param.index {
+                    index
+                } else {
+                    parameters.push(param.expr.to_token_stream());
+                    let index = parameters.len();
+                    param.index = Some(index);
+                    index
                 }
-                _ => {}
             }
-        }
+            Token::Argument(Argument::Positional(ix)) => {
+                let Some(param) = unnamed_arguments.get_mut(ix)
+                else {
+                    return syn::Error::new(input.query.span(), format!("missing argument for index {ix}"))
+                        .into_compile_error()
+                        .into();
+                };
+                if let Some(index) = param.index {
+                    index
+                } else {
+                    parameters.push(param.expr.to_token_stream());
+                    let index = parameters.len();
+                    param.index = Some(index);
+                    index
+                }
+            }
+            Token::Argument(Argument::Named(ident)) => {
+                if let Some(param) = named_arguments.get_mut(ident) {
+                    if let Some(index) = param.index {
+                        index
+                    } else {
+                        parameters.push(param.expr.to_token_stream());
+                        let index = parameters.len();
+                        param.index = Some(index);
+                        index
+                    }
+                } else {
+                    match variable_arguments.entry(ident) {
+                        Entry::Occupied(e) => *e.get(),
+                        Entry::Vacant(e) => {
+                            let ident = format_ident!("{}", ident);
+                            parameters.push(ident.to_token_stream());
+                            let index = parameters.len();
+                            e.insert(index);
+                            index
+                        }
+                    }
+                }
+            }
+        };
+
+        write!(result, "${}", index).unwrap();
     }
-    result.push_str(&query[pos..]);
 
     for arg in unnamed_arguments
         .into_iter()

@@ -2,6 +2,7 @@
 #![cfg_attr(nightly_column_names, allow(incomplete_features))]
 
 mod from_row;
+mod parser;
 mod sql;
 
 use proc_macro::TokenStream;
