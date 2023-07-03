@@ -67,28 +67,69 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         }
     }
 
-    Ok(quote! {
-        #[automatically_derived]
-        impl #impl_generics_with_cols ::sqlm_postgres::FromRow<Cols> for #ident #ty_generics
-        where
-            #where_predicates
-        {
-            fn from_row(row: ::sqlm_postgres::Row<Cols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                Ok(Self {
-                    #(#field_assignments)*
-                })
+    #[cfg(feature = "comptime")]
+    {
+        let _ = impl_generics;
+        Ok(quote! {
+            #[automatically_derived]
+            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<Cols> for #ident #ty_generics
+            where
+                #where_predicates
+            {
+                fn from_row(row: ::sqlm_postgres::Row<Cols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                    Ok(Self {
+                        #(#field_assignments)*
+                    })
+                }
             }
-        }
 
-        #[automatically_derived]
-        impl #impl_generics ::sqlm_postgres::FromRow<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
-            fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::AnyCols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                Ok(Self {
-                    #(#field_assignments)*
-                })
+            #[automatically_derived]
+            impl #impl_generics_with_cols ::sqlm_postgres::Query<Cols> for #ident #ty_generics
+            where
+                #where_predicates
+            {
+                fn query<'a>(
+                    sql: ::sqlm_postgres::Sql<'a, Cols, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
+                    Box::pin(async move {
+                        let conn = ::sqlm_postgres::connect().await?;
+                        let stmt = conn.prepare_cached(sql.query).await?;
+                        let row = conn.query_one(&stmt, sql.parameters).await?;
+                        Ok(::sqlm_postgres::FromRow::<Cols>::from_row(row.into())?)
+                    })
+                }
             }
-        }
-    })
+        })
+    }
+    #[cfg(not(feature = "comptime"))]
+    {
+        let _ = impl_generics_with_cols;
+        Ok(quote! {
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::FromRow<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::AnyCols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                    Ok(Self {
+                        #(#field_assignments)*
+                    })
+                }
+            }
+
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
+                fn query<'a>(
+                    sql: ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
+                    Box::pin(async move {
+                        let conn = ::sqlm_postgres::connect().await?;
+                        let stmt = conn.prepare_cached(sql.query).await?;
+                        let row = conn.query_one(&stmt, sql.parameters).await?;
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::AnyCols>::from_row(row.into())?)
+                    })
+                }
+            }
+        })
+    }
 }
 
 pub(crate) enum Kind {

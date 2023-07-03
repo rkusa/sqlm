@@ -7,6 +7,7 @@ extern crate self as sqlm_postgres;
 
 mod error;
 mod future;
+mod query;
 mod row;
 
 use std::env;
@@ -17,6 +18,7 @@ use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
+pub use query::Query;
 pub use row::{AnyCols, FromRow, HasColumn, Row};
 pub use sqlm_postgres_macros::{sql, sql_unchecked, FromRow};
 pub use tokio_postgres;
@@ -91,7 +93,7 @@ mod tests {
             name: String,
         }
 
-        let id = 1;
+        let id = 1i64;
         let user: User = sql!("SELECT id, name FROM users WHERE id = {id}")
             .await
             .unwrap();
@@ -102,6 +104,41 @@ mod tests {
                 name: "first".to_string()
             }
         );
+    }
+
+    #[tokio::test]
+    async fn test_vec_from_row() {
+        #[derive(Debug, PartialEq, Eq, FromRow)]
+        struct User {
+            id: i64,
+            name: Option<String>,
+        }
+
+        let users: Vec<User> = sql!("SELECT id, name FROM users LIMIT 2").await.unwrap();
+        assert_eq!(
+            users,
+            vec![
+                User {
+                    id: 1,
+                    name: Some("first".to_string()),
+                },
+                User { id: 2, name: None }
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_option_from_row() {
+        #[derive(Debug, PartialEq, Eq, FromRow)]
+        struct User {
+            id: i64,
+            name: Option<String>,
+        }
+
+        let user: Option<User> = sql!("SELECT id, name FROM users WHERE id = 0")
+            .await
+            .unwrap();
+        assert_eq!(user, None);
     }
 
     #[tokio::test]

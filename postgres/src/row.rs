@@ -17,6 +17,11 @@ pub trait HasColumn<Type, const NAME: &'static str> {}
 
 pub struct AnyCols(());
 
+#[cfg(not(nightly_column_names))]
+impl<T, const NAME: usize> HasColumn<T, NAME> for AnyCols {}
+#[cfg(nightly_column_names)]
+impl<T, const NAME: &'static str> HasColumn<T, NAME> for AnyCols {}
+
 impl<Cols> Deref for Row<Cols> {
     type Target = tokio_postgres::Row;
 
