@@ -274,15 +274,44 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 }
 
 #[cfg(feature = "comptime")]
-fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<syn::Ident> {
-    use postgres::types::FromSql;
+fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<syn::TypePath> {
+    use postgres::types::{FromSql, Kind};
+    use syn::parse_quote;
 
     match ty {
         // String
-        ty if <String as FromSql>::accepts(ty) => Some(format_ident!("String")),
+        ty if <String as FromSql>::accepts(ty) => Some(parse_quote!(String)),
 
         // i64
-        ty if <i64 as FromSql>::accepts(ty) => Some(format_ident!("i64")),
+        ty if <i64 as FromSql>::accepts(ty) => Some(parse_quote!(i64)),
+
+        // i32
+        ty if <i32 as FromSql>::accepts(ty) => Some(parse_quote!(i32)),
+
+        // bool
+        ty if <bool as FromSql>::accepts(ty) => Some(parse_quote!(bool)),
+
+        // serde_json::Value
+        #[cfg(feature = "json")]
+        ty if <serde_json::Value as FromSql>::accepts(ty) => {
+            Some(parse_quote!(::serde_json::Value))
+        }
+
+        // time::OffsetDateTime
+        #[cfg(feature = "time")]
+        ty if <time::OffsetDateTime as FromSql>::accepts(ty) => {
+            Some(parse_quote!(::time::OffsetDateTime))
+        }
+
+        // uuid::Uuid
+        #[cfg(feature = "uuid")]
+        ty if <uuid::Uuid as FromSql>::accepts(ty) => Some(parse_quote!(::uuid::Uuid)),
+
+        // Enum
+        ty if matches!(ty.kind(), Kind::Enum(_)) => {
+            let oid = ty.oid() as usize;
+            Some(parse_quote!(::sqlm_postgres::Enum<#oid>))
+        }
 
         // Unsupported
         _ => None,

@@ -75,6 +75,8 @@ pub struct Sql<'a, Cols, T = ()> {
     pub marker: PhantomData<(Cols, T)>,
 }
 
+pub struct Enum<const OID: usize>(());
+
 #[cfg(test)]
 mod tests {
     use sqlm_postgres_macros::sql_unchecked;
