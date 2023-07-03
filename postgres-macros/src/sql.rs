@@ -57,8 +57,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
     let mut result = String::with_capacity(query.len());
     let mut parameters = Vec::new();
 
-    let Ok(tokens) = parser::parse(&query)
-    else {
+    let Ok(tokens) = parser::parse(&query) else {
         return syn::Error::new(input.query.span(), "invalid format string")
             .into_compile_error()
             .into();
@@ -79,11 +78,13 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                 continue;
             }
             Token::Argument(Argument::Next) => {
-                let Some(param) = unnamed_arguments.get_mut(next_arg)
-                else {
-                    return syn::Error::new(input.query.span(), format!("missing argument for position {next_arg}"))
-                        .into_compile_error()
-                        .into();
+                let Some(param) = unnamed_arguments.get_mut(next_arg) else {
+                    return syn::Error::new(
+                        input.query.span(),
+                        format!("missing argument for position {next_arg}"),
+                    )
+                    .into_compile_error()
+                    .into();
                 };
                 next_arg += 1;
                 if let Some(index) = param.index {
@@ -96,11 +97,13 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                 }
             }
             Token::Argument(Argument::Positional(ix)) => {
-                let Some(param) = unnamed_arguments.get_mut(ix)
-                else {
-                    return syn::Error::new(input.query.span(), format!("missing argument for index {ix}"))
-                        .into_compile_error()
-                        .into();
+                let Some(param) = unnamed_arguments.get_mut(ix) else {
+                    return syn::Error::new(
+                        input.query.span(),
+                        format!("missing argument for index {ix}"),
+                    )
+                    .into_compile_error()
+                    .into();
                 };
                 if let Some(index) = param.index {
                     index
@@ -158,11 +161,10 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 
         use postgres::Config;
 
-        let Ok(database_url) = dotenvy::var("DATABASE_URL")
-        else {
+        let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
             return syn::Error::new(
                 input.query.span(),
-                "compile-time query checks require DATABASE_URL environment variable to be defined"
+                "compile-time query checks require DATABASE_URL environment variable to be defined",
             )
             .into_compile_error()
             .into();
@@ -204,8 +206,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         let mut columns = Vec::with_capacity(stmt.columns().len());
         for column in stmt.columns() {
             let ty = column.type_();
-            let Some(ty) = postgres_to_rust_type(ty)
-            else {
+            let Some(ty) = postgres_to_rust_type(ty) else {
                 return syn::Error::new(
                     input.query.span(),
                     format!("unsupported postgres type: {ty:?}"),
@@ -232,8 +233,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
         for (ty, param) in stmt.params().iter().zip(parameters) {
-            let Some(ty) = postgres_to_rust_type(ty)
-            else {
+            let Some(ty) = postgres_to_rust_type(ty) else {
                 return syn::Error::new(
                     input.query.span(),
                     format!("unsupporte postgres type: {ty:?}"),

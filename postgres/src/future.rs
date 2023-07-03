@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::query::Query;
-
 use crate::{Error, Sql};
 
 impl<'a, Cols, T> IntoFuture for Sql<'a, Cols, T>

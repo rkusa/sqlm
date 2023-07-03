@@ -16,7 +16,10 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         ..
     }) = data
     else {
-        return Err(Error::new(ident.span(), "FromRow can only be derived from named structs"));
+        return Err(Error::new(
+            ident.span(),
+            "FromRow can only be derived from named structs",
+        ));
     };
 
     let mut new_generics = generics.clone();
