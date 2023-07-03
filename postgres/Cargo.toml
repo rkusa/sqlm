@@ -13,6 +13,7 @@ uuid = ["sqlm-postgres-macros/uuid", "tokio-postgres/with-uuid-1"]
 [dependencies]
 deadpool-postgres = "0.10"
 dotenvy = "0.15"
+http-error = { git = "https://github.com/rkusa/http-error.git", ref = "c030271" } # path = "../../http-error" }
 once_cell = "1.17"
 rustls = "0.21"
 sqlm-postgres-macros = { path = "../postgres-macros", default-features = false }

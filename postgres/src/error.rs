@@ -1,5 +1,7 @@
 use std::{error, fmt};
 
+use http_error::{HttpError, StatusCode};
+
 #[derive(Debug)]
 pub enum Error {
     MissingDatabaseUrlEnv,
@@ -27,6 +29,12 @@ impl fmt::Display for Error {
             Error::Build(_) => write!(f, "failed to build postgres connection pool"),
             Error::Pool(_) => write!(f, "failed to acquire postgress connection from pool"),
         }
+    }
+}
+
+impl HttpError for Error {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
 
