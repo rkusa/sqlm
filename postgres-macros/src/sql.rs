@@ -208,7 +208,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             else {
                 return syn::Error::new(
                     input.query.span(),
-                    format!("unsupporte postgres type: {ty:?}"),
+                    format!("unsupported postgres type: {ty:?}"),
                 )
                 .into_compile_error()
                 .into();
@@ -231,7 +231,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         }
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
-        for (ty, param) in stmt.params().iter().zip(parameters.into_iter()) {
+        for (ty, param) in stmt.params().iter().zip(parameters) {
             let Some(ty) = postgres_to_rust_type(ty)
             else {
                 return syn::Error::new(

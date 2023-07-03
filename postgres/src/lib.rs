@@ -46,7 +46,7 @@ pub async fn connect() -> Result<Object, Error> {
                 config,
                 NoTls,
                 ManagerConfig {
-                    recycling_method: RecyclingMethod::Fast,
+                    recycling_method: RecyclingMethod::Verified,
                 },
             ),
             _ => Manager::from_config(
@@ -59,7 +59,7 @@ pub async fn connect() -> Result<Object, Error> {
                     tokio_postgres_rustls::MakeRustlsConnect::new(config)
                 },
                 ManagerConfig {
-                    recycling_method: RecyclingMethod::Fast,
+                    recycling_method: RecyclingMethod::Verified,
                 },
             ),
         };
