@@ -1,6 +1,11 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse_quote, Data, DataStruct, DeriveInput, Error, Fields, PathArguments, Type};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{
+    parse_quote, token, Attribute, Data, DataStruct, DeriveInput, Error, Expr, Fields, Path,
+    PathArguments, Type,
+};
 
 pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     let DeriveInput {
@@ -33,6 +38,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     let mut field_assignments = Vec::with_capacity(fields.named.len());
 
     for f in fields.named.iter() {
+        let opts = extract_field_options(&f.attrs)?;
         let ident = f.ident.as_ref().unwrap();
         let (ty, kind) = extract_inner_type(&f.ty)?;
 
@@ -60,13 +66,20 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                 #(#attrs)*
                 #ident: row.try_get(#name)?,
             }),
-            Kind::Other => field_assignments.push(quote! {
-                #(#attrs)*
-                #ident: {
-                    let v: Option<#ty> = row.try_get(#name)?;
-                    v.unwrap_or_default()
-                },
-            }),
+            Kind::Other => {
+                let default = if let Some(default) = opts.default {
+                    quote! { v.unwrap_or_else(|| { #default }.into()) }
+                } else {
+                    quote! { v.unwrap_or_default() }
+                };
+                field_assignments.push(quote! {
+                    #(#attrs)*
+                    #ident: {
+                        let v: Option<#ty> = row.try_get(#name)?;
+                        #default
+                    },
+                })
+            }
         }
     }
 
@@ -159,4 +172,45 @@ pub(crate) fn extract_inner_type(ty: &Type) -> syn::Result<(&Type, Kind)> {
     }
 
     Ok((ty, Kind::Other))
+}
+
+#[derive(Default)]
+struct FieldOptions {
+    default: Option<Expr>,
+}
+
+fn extract_field_options(attrs: &[Attribute]) -> Result<FieldOptions, Error> {
+    let mut opts = FieldOptions::default();
+
+    for attr in attrs {
+        if !attr.path().is_ident("sqlm") {
+            continue;
+        }
+
+        for opt in attr.parse_args_with(Punctuated::<OptionExpr, token::Comma>::parse_terminated)? {
+            if opt.key.is_ident("default") {
+                opts.default = Some(opt.value);
+            } else {
+                return Err(Error::new_spanned(opt.key, "unknown option"));
+            }
+        }
+    }
+
+    Ok(opts)
+}
+
+#[derive(Debug, Hash)]
+struct OptionExpr {
+    key: Path,
+    value: Expr,
+}
+
+impl Parse for OptionExpr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let key = input.parse()?;
+
+        token::Eq::parse(input)?;
+        let value = input.parse()?;
+        Ok(OptionExpr { key, value })
+    }
 }

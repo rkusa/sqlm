@@ -107,3 +107,49 @@ async fn test_null_columns() {
         }
     );
 }
+
+#[tokio::test]
+async fn test_field_default_function_call() {
+    #[derive(Debug, PartialEq, Eq, FromRow)]
+    struct User {
+        id: i64,
+        #[sqlm(default = default_name())]
+        name: String,
+    }
+
+    fn default_name() -> String {
+        "Unnamed".to_string()
+    }
+
+    let user: User = sql!("SELECT id, name FROM users WHERE id = 2")
+        .await
+        .unwrap();
+    assert_eq!(
+        user,
+        User {
+            id: 2,
+            name: "Unnamed".to_string()
+        }
+    );
+}
+
+#[tokio::test]
+async fn test_field_default_literal() {
+    #[derive(Debug, PartialEq, Eq, FromRow)]
+    struct User {
+        id: i64,
+        #[sqlm(default = "Unnamed")]
+        name: String,
+    }
+
+    let user: User = sql!("SELECT id, name FROM users WHERE id = 2")
+        .await
+        .unwrap();
+    assert_eq!(
+        user,
+        User {
+            id: 2,
+            name: "Unnamed".to_string()
+        }
+    );
+}
