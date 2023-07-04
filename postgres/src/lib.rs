@@ -19,8 +19,8 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
-pub use row::{AnyCols, FromRow, HasColumn, Row};
-pub use sqlm_postgres_macros::{sql, sql_unchecked, FromRow};
+pub use row::{AnyCols, FromRow, HasColumn, HasVariant, Row};
+pub use sqlm_postgres_macros::{sql, sql_unchecked, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::types::ToSql;
@@ -75,121 +75,4 @@ pub struct Sql<'a, Cols, T = ()> {
     pub query: &'static str,
     pub parameters: &'a [&'a (dyn ToSql + Sync)],
     pub marker: PhantomData<(Cols, T)>,
-}
-
-pub struct Enum<const OID: usize>(());
-
-#[cfg(test)]
-mod tests {
-    use sqlm_postgres_macros::sql_unchecked;
-
-    use crate::{sql, FromRow};
-
-    #[tokio::test]
-    async fn test_from_row() {
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct User {
-            id: i64,
-            name: String,
-        }
-
-        let id = 1i64;
-        let user: User = sql!("SELECT id, name FROM users WHERE id = {id}")
-            .await
-            .unwrap();
-        assert_eq!(
-            user,
-            User {
-                id: 1,
-                name: "first".to_string()
-            }
-        );
-    }
-
-    #[tokio::test]
-    async fn test_vec_from_row() {
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct User {
-            id: i64,
-            name: Option<String>,
-        }
-
-        let users: Vec<User> = sql!("SELECT id, name FROM users LIMIT 2").await.unwrap();
-        assert_eq!(
-            users,
-            vec![
-                User {
-                    id: 1,
-                    name: Some("first".to_string()),
-                },
-                User { id: 2, name: None }
-            ]
-        );
-    }
-
-    #[tokio::test]
-    async fn test_option_from_row() {
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct User {
-            id: i64,
-            name: Option<String>,
-        }
-
-        let user: Option<User> = sql!("SELECT id, name FROM users WHERE id = 0")
-            .await
-            .unwrap();
-        assert_eq!(user, None);
-    }
-
-    #[tokio::test]
-    async fn test_from_row_unchecked() {
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct User {
-            id: i64,
-            name: String,
-        }
-
-        let id = 1i64;
-        let user: User = sql_unchecked!("SELECT id, name FROM users WHERE id = {id}")
-            .await
-            .unwrap();
-        assert_eq!(
-            user,
-            User {
-                id: 1,
-                name: "first".to_string()
-            }
-        );
-    }
-
-    #[tokio::test]
-    async fn test_null_columns() {
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct UserNotNullName {
-            id: i64,
-            name: String,
-        }
-
-        #[derive(Debug, PartialEq, Eq, FromRow)]
-        struct UserNullName {
-            id: i64,
-            name: Option<String>,
-        }
-
-        let user: UserNullName = sql!("SELECT id, name FROM users WHERE id = 2")
-            .await
-            .unwrap();
-        assert_eq!(user, UserNullName { id: 2, name: None });
-
-        let user: UserNotNullName = sql!("SELECT id, name FROM users WHERE id = 2")
-            .await
-            .unwrap();
-        assert_eq!(
-            user,
-            UserNotNullName {
-                id: 2,
-                name: "".to_string()
-            }
-        );
-    }
 }

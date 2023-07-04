@@ -159,6 +159,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
     if !opts.skip_query_check {
         use std::str::FromStr;
 
+        use postgres::types::Kind;
         use postgres::Config;
 
         let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
@@ -206,14 +207,6 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         let mut columns = Vec::with_capacity(stmt.columns().len());
         for column in stmt.columns() {
             let ty = column.type_();
-            let Some(ty) = postgres_to_rust_type(ty) else {
-                return syn::Error::new(
-                    input.query.span(),
-                    format!("unsupported postgres type: {ty:?}"),
-                )
-                .into_compile_error()
-                .into();
-            };
 
             #[cfg(not(nightly_column_names))]
             let name = {
@@ -226,9 +219,43 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             #[cfg(nightly_column_names)]
             let name = column.name();
 
-            columns.push(quote! {
-                impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
-            });
+            if let Kind::Enum(variants) = ty.kind() {
+                columns.push(quote! {
+                    impl<T> ::sqlm_postgres::HasColumn<T, #name> for Cols where
+                });
+
+                let n = variants.len();
+                for variant in variants {
+                    #[cfg(not(nightly_column_names))]
+                    let name = {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut hasher = DefaultHasher::default();
+                        variant.hash(&mut hasher);
+                        hasher.finish() as usize
+                    };
+                    #[cfg(nightly_column_names)]
+                    let name = variant;
+                    columns.push(quote! {
+                        T: ::sqlm_postgres::HasVariant<#n, #name>,
+                    });
+                }
+
+                columns.push(quote! {
+                    {}
+                });
+            } else if let Some(ty) = postgres_to_rust_type(ty) {
+                columns.push(quote! {
+                    impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
+                });
+            } else {
+                return syn::Error::new(
+                    input.query.span(),
+                    format!("unsupported postgres type: {ty:?}"),
+                )
+                .into_compile_error()
+                .into();
+            };
         }
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
@@ -275,7 +302,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 
 #[cfg(feature = "comptime")]
 fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<syn::TypePath> {
-    use postgres::types::{FromSql, Kind};
+    use postgres::types::FromSql;
     use syn::parse_quote;
 
     match ty {
@@ -306,12 +333,6 @@ fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<syn::TypePath> {
         // uuid::Uuid
         #[cfg(feature = "uuid")]
         ty if <uuid::Uuid as FromSql>::accepts(ty) => Some(parse_quote!(::uuid::Uuid)),
-
-        // Enum
-        ty if matches!(ty.kind(), Kind::Enum(_)) => {
-            let oid = ty.oid() as usize;
-            Some(parse_quote!(::sqlm_postgres::Enum<#oid>))
-        }
 
         // Unsupported
         _ => None,

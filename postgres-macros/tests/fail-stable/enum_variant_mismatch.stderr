@@ -1,0 +1,28 @@
+error[E0277]: the trait bound `Role: HasVariant<2, 5755620910692865178>` is not satisfied
+  --> tests/fail-stable/enum_variant_mismatch.rs:23:58
+   |
+23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
+   |                        ----------------------------------^^^^^^
+   |                        |                                 |
+   |                        |                                 the trait `HasVariant<2, 5755620910692865178>` is not implemented for `Role`
+   |                        |                                 help: remove the `.await`
+   |                        in this macro invocation
+   |
+   = help: the following other types implement trait `HasVariant<N, NAME>`:
+             <Role as HasVariant<2, 10465144470622129318>>
+             <Role as HasVariant<2, 16036746858103170191>>
+note: required for `Cols` to implement `HasColumn<Role, 18137070463969723500>`
+  --> tests/fail-stable/enum_variant_mismatch.rs:23:24
+   |
+23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required for `User` to implement `FromRow<Cols>`
+  --> tests/fail-stable/enum_variant_mismatch.rs:15:32
+   |
+15 | #[derive(Debug, PartialEq, Eq, FromRow)]
+   |                                ^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+16 | struct User {
+   |        ^^^^
+   = note: required for `Vec<User>` to implement `Query<Cols>`
+   = note: required for `Sql<'_, Cols, Vec<User>>` to implement `IntoFuture`
+   = note: this error originates in the macro `sql` which comes from the expansion of the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
