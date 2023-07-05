@@ -8,14 +8,29 @@ use crate::{Error, Sql};
 
 impl<'a, Cols, T> IntoFuture for Sql<'a, Cols, T>
 where
-    T: Query<Cols>,
+    T: Query<Cols> + 'a,
+    Cols: 'a,
 {
     type Output = Result<T, Error>;
     type IntoFuture = SqlFuture<'a, T>;
 
     fn into_future(self) -> Self::IntoFuture {
         SqlFuture {
-            future: T::query(self),
+            future: Box::pin(async move {
+                let mut i = 1;
+                loop {
+                    match T::query(&self).await {
+                        Ok(r) => return Ok(r),
+                        Err(Error::Postgres(err)) if err.is_closed() && i <= 1 => {
+                            // retry once if connection is closed (might have received a closed one
+                            // from the connection pool)
+                            i += 1;
+                            continue;
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+            }),
             marker: PhantomData,
         }
     }

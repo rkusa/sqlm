@@ -46,7 +46,7 @@ pub async fn connect() -> Result<Object, Error> {
                 config,
                 NoTls,
                 ManagerConfig {
-                    recycling_method: RecyclingMethod::Verified,
+                    recycling_method: RecyclingMethod::Fast,
                 },
             ),
             _ => Manager::from_config(

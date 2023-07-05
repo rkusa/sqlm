@@ -5,7 +5,7 @@ use crate::{connect, Error, FromRow, Sql};
 
 pub trait Query<Cols>: Sized {
     fn query<'a>(
-        sql: Sql<'a, Cols, Self>,
+        sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>>;
 }
 
@@ -14,7 +14,7 @@ where
     T: FromRow<Cols>,
 {
     fn query<'a>(
-        sql: Sql<'a, Cols, Self>,
+        sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
         Box::pin(async move {
             let conn = connect().await?;
@@ -32,7 +32,7 @@ where
     T: FromRow<Cols>,
 {
     fn query<'a>(
-        sql: Sql<'a, Cols, Self>,
+        sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
         Box::pin(async move {
             let conn = connect().await?;

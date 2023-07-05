@@ -105,7 +105,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                 #where_predicates
             {
                 fn query<'a>(
-                    sql: ::sqlm_postgres::Sql<'a, Cols, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, Cols, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
                     Box::pin(async move {
                         let conn = ::sqlm_postgres::connect().await?;
