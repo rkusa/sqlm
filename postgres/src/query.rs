@@ -56,6 +56,24 @@ where
     }
 }
 
+impl<Cols> Query<Cols> for () {
+    fn query<'a>(
+        sql: &'a Sql<'a, Cols, Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+        Box::pin(async move {
+            if let Some(tx) = sql.transaction {
+                let stmt = tx.prepare_cached(sql.query).await?;
+                tx.execute(&stmt, sql.parameters).await?;
+            } else {
+                let conn = connect().await?;
+                let stmt = conn.prepare_cached(sql.query).await?;
+                conn.execute(&stmt, sql.parameters).await?;
+            }
+            Ok(())
+        })
+    }
+}
+
 #[cfg(feature = "comptime")]
 macro_rules! impl_query_scalar {
     ($ty:tt) => {
