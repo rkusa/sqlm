@@ -17,9 +17,14 @@ where
         sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
         Box::pin(async move {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(sql.query).await?;
-            let rows = conn.query(&stmt, sql.parameters).await?;
+            let rows = if let Some(tx) = sql.transaction {
+                let stmt = tx.prepare_cached(sql.query).await?;
+                tx.query(&stmt, sql.parameters).await?
+            } else {
+                let conn = connect().await?;
+                let stmt = conn.prepare_cached(sql.query).await?;
+                conn.query(&stmt, sql.parameters).await?
+            };
             rows.into_iter()
                 .map(|row| FromRow::<Cols>::from_row(row.into()).map_err(Error::from))
                 .collect()
@@ -35,9 +40,14 @@ where
         sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
         Box::pin(async move {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(sql.query).await?;
-            let row = conn.query_opt(&stmt, sql.parameters).await?;
+            let row = if let Some(tx) = sql.transaction {
+                let stmt = tx.prepare_cached(sql.query).await?;
+                tx.query_opt(&stmt, sql.parameters).await?
+            } else {
+                let conn = connect().await?;
+                let stmt = conn.prepare_cached(sql.query).await?;
+                conn.query_opt(&stmt, sql.parameters).await?
+            };
             match row {
                 Some(row) => Ok(Some(FromRow::<Cols>::from_row(row.into())?)),
                 None => Ok(None),
@@ -57,9 +67,14 @@ macro_rules! impl_query_scalar {
                 sql: &'a Sql<'a, Cols, Self>,
             ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
                 Box::pin(async move {
-                    let conn = connect().await?;
-                    let stmt = conn.prepare_cached(sql.query).await?;
-                    let row = conn.query_one(&stmt, sql.parameters).await?;
+                    let row = if let Some(tx) = sql.transaction {
+                        let stmt = tx.prepare_cached(sql.query).await?;
+                        tx.query_one(&stmt, sql.parameters).await?
+                    } else {
+                        let conn = connect().await?;
+                        let stmt = conn.prepare_cached(sql.query).await?;
+                        conn.query_one(&stmt, sql.parameters).await?
+                    };
                     Ok(row.try_get(0)?)
                 })
             }
@@ -75,9 +90,14 @@ macro_rules! impl_query_scalar {
                 sql: &'a Sql<'a, Cols, Self>,
             ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
                 Box::pin(async move {
-                    let conn = connect().await?;
-                    let stmt = conn.prepare_cached(sql.query).await?;
-                    let row = conn.query_one(&stmt, sql.parameters).await?;
+                    let row = if let Some(tx) = sql.transaction {
+                        let stmt = tx.prepare_cached(sql.query).await?;
+                        tx.query_one(&stmt, sql.parameters).await?
+                    } else {
+                        let conn = connect().await?;
+                        let stmt = conn.prepare_cached(sql.query).await?;
+                        conn.query_one(&stmt, sql.parameters).await?
+                    };
                     Ok(row.try_get(0)?)
                 })
             }

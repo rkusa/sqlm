@@ -108,9 +108,14 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                     sql: &'a ::sqlm_postgres::Sql<'a, Cols, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
                     Box::pin(async move {
-                        let conn = ::sqlm_postgres::connect().await?;
-                        let stmt = conn.prepare_cached(sql.query).await?;
-                        let row = conn.query_one(&stmt, sql.parameters).await?;
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_one(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_one(&stmt, sql.parameters).await?
+                        };
                         Ok(::sqlm_postgres::FromRow::<Cols>::from_row(row.into())?)
                     })
                 }
@@ -137,9 +142,14 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                     sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
                     Box::pin(async move {
-                        let conn = ::sqlm_postgres::connect().await?;
-                        let stmt = conn.prepare_cached(sql.query).await?;
-                        let row = conn.query_one(&stmt, sql.parameters).await?;
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_one(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_one(&stmt, sql.parameters).await?
+                        };
                         Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::AnyCols>::from_row(row.into())?)
                     })
                 }

@@ -14,6 +14,7 @@ use std::env;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
+pub use deadpool_postgres::Transaction;
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 pub use error::Error;
 pub use future::SqlFuture;
@@ -74,5 +75,13 @@ pub struct Sql<'a, Cols, T = ()> {
     // TODO: not pub?
     pub query: &'static str,
     pub parameters: &'a [&'a (dyn ToSql + Sync)],
+    pub transaction: Option<&'a Transaction<'a>>,
     pub marker: PhantomData<(Cols, T)>,
+}
+
+impl<'a, Cols, T> Sql<'a, Cols, T> {
+    pub fn with_transaction(mut self, tx: &'a Transaction<'a>) -> Self {
+        self.transaction = Some(tx);
+        self
+    }
 }

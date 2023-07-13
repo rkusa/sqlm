@@ -290,6 +290,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                 ::sqlm_postgres::Sql::<'_, Cols, _> {
                     query: #result,
                     parameters: &[#(&#typed_parameters,)*],
+                    transaction: None,
                     marker: ::std::marker::PhantomData,
                 }
             }
@@ -301,6 +302,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::AnyCols, _> {
             query: #result,
             parameters: &[#(&{#parameters},)*],
+            transaction: None,
             marker: ::std::marker::PhantomData,
         }
     }
