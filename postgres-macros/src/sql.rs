@@ -205,6 +205,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         };
 
         let mut columns = Vec::with_capacity(stmt.columns().len());
+        let col_count = stmt.columns().len();
         for column in stmt.columns() {
             let ty = column.type_();
 
@@ -248,6 +249,12 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                 columns.push(quote! {
                     impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
                 });
+
+                if col_count == 1 {
+                    columns.push(quote! {
+                        impl ::sqlm_postgres::HasScalar<#ty> for Cols {}
+                    });
+                }
             } else {
                 return syn::Error::new(
                     input.query.span(),

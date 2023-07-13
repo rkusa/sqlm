@@ -1,0 +1,14 @@
+error[E0277]: the trait bound `Cols: HasScalar<String>` is not satisfied
+ --> tests/fail-stable/scalar_mismatch.rs:5:55
+  |
+5 |     let _: String = sql!("SELECT COUNT(*) FROM users").await.unwrap();
+  |                     ----------------------------------^^^^^^
+  |                     |                                 |
+  |                     |                                 the trait `HasScalar<String>` is not implemented for `Cols`
+  |                     |                                 help: remove the `.await`
+  |                     in this macro invocation
+  |
+  = help: the trait `HasScalar<i64>` is implemented for `Cols`
+  = note: required for `String` to implement `Query<Cols>`
+  = note: required for `Sql<'_, Cols, String>` to implement `IntoFuture`
+  = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -134,7 +134,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
                 fn query<'a>(
-                    sql: ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
                     Box::pin(async move {
                         let conn = ::sqlm_postgres::connect().await?;

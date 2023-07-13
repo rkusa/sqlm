@@ -15,6 +15,8 @@ pub trait HasColumn<Type, const NAME: usize> {}
 #[cfg(nightly_column_names)]
 pub trait HasColumn<Type, const NAME: &'static str> {}
 
+pub trait HasScalar<Type> {}
+
 #[cfg(not(nightly_column_names))]
 pub trait HasVariant<const N: usize, const NAME: usize> {}
 #[cfg(nightly_column_names)]
