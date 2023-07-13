@@ -245,7 +245,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                 columns.push(quote! {
                     {}
                 });
-            } else if let Some(ty) = postgres_to_rust_type(ty) {
+            } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
                 columns.push(quote! {
                     impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
                 });
@@ -267,7 +267,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
         for (ty, param) in stmt.params().iter().zip(parameters) {
-            let Some(ty) = postgres_to_rust_type(ty) else {
+            let Some((_, ty)) = postgres_to_rust_type(ty) else {
                 return syn::Error::new(
                     input.query.span(),
                     format!("unsupporte postgres type: {ty:?}"),
@@ -277,7 +277,10 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             };
 
             typed_parameters.push(quote! {
-                #ty::from(#param)
+                {
+                    let _: &#ty = &(#param);
+                    &(#param)
+                }
             });
         }
 
@@ -289,7 +292,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 
                 ::sqlm_postgres::Sql::<'_, Cols, _> {
                     query: #result,
-                    parameters: &[#(&#typed_parameters,)*],
+                    parameters: &[#(&(#typed_parameters),)*],
                     transaction: None,
                     marker: ::std::marker::PhantomData,
                 }
@@ -301,7 +304,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
     quote! {
         ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::AnyCols, _> {
             query: #result,
-            parameters: &[#(&{#parameters},)*],
+            parameters: &[#(&(#parameters),)*],
             transaction: None,
             marker: ::std::marker::PhantomData,
         }
@@ -310,38 +313,36 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
 }
 
 #[cfg(feature = "comptime")]
-fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<syn::TypePath> {
+fn postgres_to_rust_type(
+    ty: &postgres::types::Type,
+) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
     use postgres::types::FromSql;
-    use syn::parse_quote;
 
     match ty {
-        // String
-        ty if <String as FromSql>::accepts(ty) => Some(parse_quote!(String)),
-
-        // i64
-        ty if <i64 as FromSql>::accepts(ty) => Some(parse_quote!(i64)),
-
-        // i32
-        ty if <i32 as FromSql>::accepts(ty) => Some(parse_quote!(i32)),
-
-        // bool
-        ty if <bool as FromSql>::accepts(ty) => Some(parse_quote!(bool)),
+        ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str))),
+        ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64))),
+        ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
+        ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
+        ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
 
         // serde_json::Value
         #[cfg(feature = "json")]
         ty if <serde_json::Value as FromSql>::accepts(ty) => {
-            Some(parse_quote!(::serde_json::Value))
+            Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
         }
 
         // time::OffsetDateTime
         #[cfg(feature = "time")]
-        ty if <time::OffsetDateTime as FromSql>::accepts(ty) => {
-            Some(parse_quote!(::time::OffsetDateTime))
-        }
+        ty if <time::OffsetDateTime as FromSql>::accepts(ty) => Some((
+            quote!(::time::OffsetDateTime),
+            quote!(::time::OffsetDateTime),
+        )),
 
         // uuid::Uuid
         #[cfg(feature = "uuid")]
-        ty if <uuid::Uuid as FromSql>::accepts(ty) => Some(parse_quote!(::uuid::Uuid)),
+        ty if <uuid::Uuid as FromSql>::accepts(ty) => {
+            Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
+        }
 
         // Unsupported
         _ => None,
