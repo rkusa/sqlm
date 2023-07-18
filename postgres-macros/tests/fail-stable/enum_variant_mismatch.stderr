@@ -1,12 +1,10 @@
 error[E0277]: the trait bound `Role: HasVariant<2, 5755620910692865178>` is not satisfied
-  --> tests/fail-stable/enum_variant_mismatch.rs:23:58
+  --> tests/fail-stable/enum_variant_mismatch.rs:23:59
    |
 23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                        ----------------------------------^^^^^^
-   |                        |                                 |
-   |                        |                                 the trait `HasVariant<2, 5755620910692865178>` is not implemented for `Role`
-   |                        |                                 help: remove the `.await`
-   |                        in this macro invocation
+   |                                                          -^^^^^ the trait `HasVariant<2, 5755620910692865178>` is not implemented for `Role`
+   |                                                          |
+   |                                                          help: remove the `.await`
    |
    = help: the following other types implement trait `HasVariant<N, NAME>`:
              <Role as HasVariant<2, 10465144470622129318>>

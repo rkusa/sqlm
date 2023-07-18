@@ -1,12 +1,10 @@
 error[E0277]: the trait bound `Role: HasVariant<2, 10465144470622129318>` is not satisfied
-  --> tests/fail-stable/enum_missing_variant.rs:20:58
+  --> tests/fail-stable/enum_missing_variant.rs:20:59
    |
 20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                        ----------------------------------^^^^^^
-   |                        |                                 |
-   |                        |                                 the trait `HasVariant<2, 10465144470622129318>` is not implemented for `Role`
-   |                        |                                 help: remove the `.await`
-   |                        in this macro invocation
+   |                                                          -^^^^^ the trait `HasVariant<2, 10465144470622129318>` is not implemented for `Role`
+   |                                                          |
+   |                                                          help: remove the `.await`
    |
    = help: the trait `HasVariant<1, 10465144470622129318>` is implemented for `Role`
 note: required for `Cols` to implement `HasColumn<Role, 18137070463969723500>`
@@ -26,14 +24,12 @@ note: required for `User` to implement `FromRow<Cols>`
    = note: this error originates in the macro `sql` which comes from the expansion of the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `Role: HasVariant<2, 5755620910692865178>` is not satisfied
-  --> tests/fail-stable/enum_missing_variant.rs:20:58
+  --> tests/fail-stable/enum_missing_variant.rs:20:59
    |
 20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                        ----------------------------------^^^^^^
-   |                        |                                 |
-   |                        |                                 the trait `HasVariant<2, 5755620910692865178>` is not implemented for `Role`
-   |                        |                                 help: remove the `.await`
-   |                        in this macro invocation
+   |                                                          -^^^^^ the trait `HasVariant<2, 5755620910692865178>` is not implemented for `Role`
+   |                                                          |
+   |                                                          help: remove the `.await`
    |
    = help: the trait `HasVariant<1, 10465144470622129318>` is implemented for `Role`
 note: required for `Cols` to implement `HasColumn<Role, 18137070463969723500>`
