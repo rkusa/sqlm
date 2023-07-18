@@ -102,11 +102,12 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             #[automatically_derived]
             impl #impl_generics_with_cols ::sqlm_postgres::Query<Cols> for #ident #ty_generics
             where
+                Cols: Send + Sync,
                 #where_predicates
             {
                 fn query<'a>(
                     sql: &'a ::sqlm_postgres::Sql<'a, Cols, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
                             let stmt = tx.prepare_cached(sql.query).await?;
@@ -140,7 +141,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
                 fn query<'a>(
                     sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + 'a>> {
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
                             let stmt = tx.prepare_cached(sql.query).await?;

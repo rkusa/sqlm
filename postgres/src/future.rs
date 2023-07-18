@@ -8,8 +8,8 @@ use crate::{Error, Sql};
 
 impl<'a, Cols, T> IntoFuture for Sql<'a, Cols, T>
 where
-    T: Query<Cols> + 'a,
-    Cols: 'a,
+    T: Query<Cols> + Send + Sync + 'a,
+    Cols: Send + Sync + 'a,
 {
     type Output = Result<T, Error>;
     type IntoFuture = SqlFuture<'a, T>;
@@ -37,7 +37,7 @@ where
 }
 
 pub struct SqlFuture<'a, T> {
-    future: Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>,
+    future: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>,
     marker: PhantomData<&'a ()>,
 }
 

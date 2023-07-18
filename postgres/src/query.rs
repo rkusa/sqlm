@@ -1,21 +1,22 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::{connect, Error, FromRow, Sql};
+use crate::{connect, Error, FromRow, Row, Sql};
 
 pub trait Query<Cols>: Sized {
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>;
 }
 
 impl<T, Cols> Query<Cols> for Vec<T>
 where
-    T: FromRow<Cols>,
+    Cols: Send + Sync,
+    T: FromRow<Cols> + Send + Sync,
 {
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
             let rows = if let Some(tx) = sql.transaction {
                 let stmt = tx.prepare_cached(sql.query).await?;
@@ -34,11 +35,12 @@ where
 
 impl<T, Cols> Query<Cols> for Option<T>
 where
-    T: FromRow<Cols>,
+    Cols: Send + Sync,
+    T: FromRow<Cols> + Send + Sync,
 {
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
             let row = if let Some(tx) = sql.transaction {
                 let stmt = tx.prepare_cached(sql.query).await?;
@@ -56,10 +58,13 @@ where
     }
 }
 
-impl<Cols> Query<Cols> for () {
+impl<Cols> Query<Cols> for ()
+where
+    Cols: Send + Sync,
+{
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
             if let Some(tx) = sql.transaction {
                 let stmt = tx.prepare_cached(sql.query).await?;
@@ -76,14 +81,14 @@ impl<Cols> Query<Cols> for () {
 
 #[cfg(feature = "comptime")]
 macro_rules! impl_query_scalar {
-    ($ty:tt) => {
+    ($ty:path) => {
         impl<Cols> Query<Cols> for $ty
         where
-            Cols: crate::row::HasScalar<Self>,
+            Cols: crate::row::HasScalar<Self> + Send + Sync,
         {
             fn query<'a>(
                 sql: &'a Sql<'a, Cols, Self>,
-            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
                 Box::pin(async move {
                     let row = if let Some(tx) = sql.transaction {
                         let stmt = tx.prepare_cached(sql.query).await?;
@@ -97,16 +102,28 @@ macro_rules! impl_query_scalar {
                 })
             }
         }
+
+        impl<Cols> FromRow<Cols> for $ty
+        where
+            Cols: crate::row::HasScalar<Self> + Send + Sync,
+        {
+            fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error> {
+                row.try_get(0)
+            }
+        }
     };
 }
 
 #[cfg(not(feature = "comptime"))]
 macro_rules! impl_query_scalar {
-    ($ty:tt) => {
-        impl<Cols> Query<Cols> for $ty {
+    ($ty:path) => {
+        impl<Cols> Query<Cols> for $ty
+        where
+            Cols: Send + Sync,
+        {
             fn query<'a>(
                 sql: &'a Sql<'a, Cols, Self>,
-            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + 'a>> {
+            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
                 Box::pin(async move {
                     let row = if let Some(tx) = sql.transaction {
                         let stmt = tx.prepare_cached(sql.query).await?;
@@ -118,6 +135,15 @@ macro_rules! impl_query_scalar {
                     };
                     Ok(row.try_get(0)?)
                 })
+            }
+        }
+
+        impl<Cols> FromRow<Cols> for $ty
+        where
+            Cols: Send + Sync,
+        {
+            fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error> {
+                row.try_get(0)
             }
         }
     };
@@ -126,3 +152,5 @@ macro_rules! impl_query_scalar {
 impl_query_scalar!(i64);
 impl_query_scalar!(bool);
 impl_query_scalar!(String);
+#[cfg(feature = "json")]
+impl_query_scalar!(serde_json::Value);

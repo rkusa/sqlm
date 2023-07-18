@@ -324,6 +324,10 @@ fn postgres_to_rust_type(
         ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
         ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
         ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
+        #[cfg(feature = "json")]
+        ty if <serde_json::Value as FromSql>::accepts(ty) => {
+            Some((quote!(serde_json::Value), quote!(serde_json::Value)))
+        }
 
         // serde_json::Value
         #[cfg(feature = "json")]

@@ -13,3 +13,12 @@ async fn test_scalar_bool() {
         .unwrap();
     assert!(exists);
 }
+
+#[tokio::test]
+async fn test_scalar_optional() {
+    let val: Option<i64> = sql!("SELECT 42::BIGINT").await.unwrap();
+    assert_eq!(val, Some(42));
+
+    let val: Option<i64> = sql!("SELECT id FROM users WHERE id = -1").await.unwrap();
+    assert_eq!(val, None);
+}
