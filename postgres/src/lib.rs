@@ -13,6 +13,7 @@ mod row;
 use std::env;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub use deadpool_postgres::Transaction;
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
@@ -55,12 +56,12 @@ pub async fn connect() -> Result<Object, Error> {
                 {
                     let config = rustls::ClientConfig::builder()
                         .with_safe_defaults()
-                        .with_root_certificates(rustls::RootCertStore::empty())
+                        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify))
                         .with_no_client_auth();
                     tokio_postgres_rustls::MakeRustlsConnect::new(config)
                 },
                 ManagerConfig {
-                    recycling_method: RecyclingMethod::Verified,
+                    recycling_method: RecyclingMethod::Fast,
                 },
             ),
         };
@@ -83,5 +84,21 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
     pub fn with_transaction(mut self, tx: &'a Transaction<'a>) -> Self {
         self.transaction = Some(tx);
         self
+    }
+}
+
+struct NoServerCertVerify;
+
+impl rustls::client::ServerCertVerifier for NoServerCertVerify {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::Certificate,
+        _intermediates: &[rustls::Certificate],
+        _server_name: &rustls::ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp: &[u8],
+        _now: std::time::SystemTime,
+    ) -> std::result::Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
     }
 }
