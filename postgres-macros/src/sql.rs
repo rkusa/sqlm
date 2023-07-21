@@ -220,10 +220,64 @@ pub fn sql(item: TokenStream) -> TokenStream {
         let col_count = stmt.columns().len();
         if col_count == 1 {
             // Consider the result to be a literal
-            //
             let ty = stmt.columns()[0].type_();
-            let ty = if let Some((ty, _)) = postgres_to_rust_type(ty) {
-                ty
+            let variants = match ty.kind() {
+                Kind::Enum(variants) => Some(variants),
+                Kind::Array(ty) => {
+                    if let Kind::Enum(variants) = ty.kind() {
+                        Some(variants)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some(variants) = variants {
+                let n = variants.len();
+                let mut variant_traits = Vec::with_capacity(n);
+                for variant in variants {
+                    #[cfg(not(nightly_column_names))]
+                    let name = {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut hasher = DefaultHasher::default();
+                        variant.hash(&mut hasher);
+                        hasher.finish() as usize
+                    };
+                    #[cfg(nightly_column_names)]
+                    let name = variant;
+                    variant_traits.push(quote! {
+                        impl ::sqlm_postgres::HasVariant<#n, #name> for Cols {}
+                    });
+                }
+
+                return quote! {
+                    {
+                        pub struct Cols;
+
+                        #(#variant_traits)*
+
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<Cols>, _> {
+                            query: #result,
+                            parameters: &[#(&(#typed_parameters),)*],
+                            transaction: None,
+                            marker: ::std::marker::PhantomData,
+                        }
+                    }
+                }
+                .into();
+            } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
+                return quote! {
+                    {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#ty>, _> {
+                            query: #result,
+                            parameters: &[#(&(#typed_parameters),)*],
+                            transaction: None,
+                            marker: ::std::marker::PhantomData,
+                        }
+                    }
+                }
+                .into();
             } else {
                 return syn::Error::new(
                     input.query.span(),
@@ -231,19 +285,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 )
                 .into_compile_error()
                 .into();
-            };
-
-            return quote! {
-                {
-                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#ty>, _> {
-                        query: #result,
-                        parameters: &[#(&(#typed_parameters),)*],
-                        transaction: None,
-                        marker: ::std::marker::PhantomData,
-                    }
-                }
             }
-            .into();
         }
 
         let mut columns = Vec::with_capacity(stmt.columns().len());
@@ -312,7 +354,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
                 #(#columns)*
 
-                ::sqlm_postgres::Sql::<'_, Cols, _> {
+                ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Struct<Cols>, _> {
                     query: #result,
                     parameters: &[#(&(#typed_parameters),)*],
                     transaction: None,

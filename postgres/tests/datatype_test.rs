@@ -15,6 +15,8 @@ mod string {
         let expected = "foobar".to_string();
         let val: Option<String> = sql!("SELECT {expected}::VARCHAR").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<String> = sql!("SELECT NULL::VARCHAR").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -40,6 +42,8 @@ mod i64 {
         let expected = 42i64;
         let val: Option<i64> = sql!("SELECT {expected}::BIGINT").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<i64> = sql!("SELECT NULL::BIGINT").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -65,6 +69,8 @@ mod i32 {
         let expected = 42i32;
         let val: Option<i32> = sql!("SELECT {expected}::INT").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<i32> = sql!("SELECT NULL::INT").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -90,6 +96,8 @@ mod bool {
         let expected = true;
         let val: Option<bool> = sql!("SELECT {expected}::BOOL").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<bool> = sql!("SELECT NULL::BOOL").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -116,6 +124,8 @@ mod json {
         let expected = serde_json::Value::String("foobar".to_string());
         let val: Option<serde_json::Value> = sql!("SELECT {expected}::JSONB").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<serde_json::Value> = sql!("SELECT NULL::JSONB").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -149,10 +159,14 @@ mod time {
         let expected = ::time::OffsetDateTime::now_utc()
             .replace_nanosecond(0)
             .unwrap();
-        let val: ::time::OffsetDateTime = sql!("SELECT {expected}::TIMESTAMP WITH TIME ZONE")
-            .await
-            .unwrap();
-        assert_eq!(val, expected);
+        let val: Option<::time::OffsetDateTime> =
+            sql!("SELECT {expected}::TIMESTAMP WITH TIME ZONE")
+                .await
+                .unwrap();
+        assert_eq!(val, Some(expected));
+        let val: Option<::time::OffsetDateTime> =
+            sql!("SELECT NULL::TIMESTAMP WITH TIME ZONE").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]
@@ -185,6 +199,8 @@ mod uuid {
         let expected = ::uuid::Uuid::new_v4();
         let val: Option<::uuid::Uuid> = sql!("SELECT {expected}::UUID").await.unwrap();
         assert_eq!(val, Some(expected));
+        let val: Option<::uuid::Uuid> = sql!("SELECT NULL::UUID").await.unwrap();
+        assert_eq!(val, None);
     }
 
     #[tokio::test]

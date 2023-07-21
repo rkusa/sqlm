@@ -1,11 +1,5 @@
-error[E0425]: cannot find value `id` in this scope
- --> tests/fail/missing_variable.rs:2:5
+error[E0433]: failed to resolve: could not find `sql_unchecked` in `sqlm_postgres_macros`
+ --> tests/fail/missing_variable.rs:2:27
   |
 2 |     sqlm_postgres_macros::sql_unchecked!("{id}");
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
-  |
-  = note: this error originates in the macro `sqlm_postgres_macros::sql_unchecked` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider importing this function
-  |
-1 + use std::process::id;
-  |
+  |                           ^^^^^^^^^^^^^ could not find `sql_unchecked` in `sqlm_postgres_macros`

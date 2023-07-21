@@ -88,11 +88,11 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         let _ = impl_generics;
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<Cols> for #ident #ty_generics
+            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<::sqlm_postgres::Struct<Cols>> for #ident #ty_generics
             where
                 #where_predicates
             {
-                fn from_row(row: ::sqlm_postgres::Row<Cols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Struct<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                     Ok(Self {
                         #(#field_assignments)*
                     })
@@ -100,13 +100,13 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             }
 
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::Query<Cols> for #ident #ty_generics
+            impl #impl_generics_with_cols ::sqlm_postgres::Query<::sqlm_postgres::Struct<Cols>> for #ident #ty_generics
             where
                 Cols: Send + Sync,
                 #where_predicates
             {
                 fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, Cols, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Struct<Cols>, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
@@ -117,7 +117,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        Ok(::sqlm_postgres::FromRow::<Cols>::from_row(row.into())?)
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Struct<Cols>>::from_row(row.into())?)
                     })
                 }
             }

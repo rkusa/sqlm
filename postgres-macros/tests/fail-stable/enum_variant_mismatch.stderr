@@ -14,13 +14,13 @@ note: required for `Cols` to implement `HasColumn<Role, 18137070463969723500>`
    |
 23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required for `User` to implement `FromRow<Cols>`
+note: required for `User` to implement `FromRow<Struct<Cols>>`
   --> tests/fail-stable/enum_variant_mismatch.rs:15:32
    |
 15 | #[derive(Debug, PartialEq, Eq, FromRow)]
    |                                ^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
 16 | struct User {
    |        ^^^^
-   = note: required for `Vec<User>` to implement `Query<Cols>`
-   = note: required for `Sql<'_, Cols, Vec<User>>` to implement `IntoFuture`
+   = note: required for `Vec<User>` to implement `Query<Struct<Cols>>`
+   = note: required for `Sql<'_, Struct<Cols>, Vec<User>>` to implement `IntoFuture`
    = note: this error originates in the macro `sql` which comes from the expansion of the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)

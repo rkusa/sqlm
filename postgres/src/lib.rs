@@ -21,7 +21,9 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
-pub use row::{FromRow, HasColumn, HasVariant, Literal, Row};
+pub use row::{FromRow, HasColumn, HasVariant, Row};
+#[cfg(feature = "comptime")]
+pub use row::{Literal, Struct};
 pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
@@ -72,7 +74,7 @@ pub async fn connect() -> Result<Object, Error> {
     Ok(conn)
 }
 
-pub struct Sql<'a, Cols, T = ()> {
+pub struct Sql<'a, Cols = (), T = ()> {
     // TODO: not pub?
     pub query: &'static str,
     pub parameters: &'a [&'a (dyn ToSql + Sync)],

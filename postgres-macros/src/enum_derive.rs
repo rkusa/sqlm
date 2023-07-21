@@ -4,12 +4,11 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path};
+use syn::{parse_quote, token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path};
 
 use crate::rename::RenameAll;
 
 pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
-    #[cfg(feature = "comptime")]
     let DeriveInput {
         attrs,
         vis: _,
@@ -27,7 +26,13 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let opts = extract_options(&attrs)?;
 
+    let mut new_generics = generics.clone();
+    new_generics.params.push(parse_quote!(Cols));
+    let (impl_generics_with_cols, _, _) = new_generics.split_for_impl();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let mut where_predicates = where_clause
+        .map(|w| w.predicates.clone())
+        .unwrap_or_default();
 
     let mut has_variant_impls = Vec::with_capacity(variants.len());
     let n = variants.len();
@@ -54,13 +59,126 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
         has_variant_impls.push(quote! {
             impl #impl_generics ::sqlm_postgres::HasVariant<#n, #name> for #ident #ty_generics #where_clause {}
         });
+        where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::HasVariant<#n, #name>));
     }
 
-    Ok(quote! {
-        #(
-            #has_variant_impls
-        )*
-    })
+    #[cfg(feature = "comptime")]
+    {
+        Ok(quote! {
+            #(
+                #has_variant_impls
+            )*
+
+            #[automatically_derived]
+            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<::sqlm_postgres::Literal<Cols>> for #ident #ty_generics
+            where
+                #where_predicates
+            {
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                    row.try_get(0)
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics_with_cols ::sqlm_postgres::Query<::sqlm_postgres::Literal<Cols>> for #ident #ty_generics
+            where
+                Cols: Send + Sync,
+                #where_predicates
+            {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<Cols>, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_one(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_one(&stmt, sql.parameters).await?
+                        };
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())?)
+                    })
+                }
+            }
+        })
+    }
+    #[cfg(not(feature = "comptime"))]
+    {
+        let _ = impl_generics_with_cols;
+        Ok(quote! {
+            #(
+                #has_variant_impls
+            )*
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::FromRow<#ident> for #ident #ty_generics #where_clause {
+                fn from_row(row: ::sqlm_postgres::Row<#ident>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                    row.try_get(0)
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::Query<#ident> for #ident #ty_generics #where_clause {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_one(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_one(&stmt, sql.parameters).await?
+                        };
+                        Ok(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)
+                    })
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::Query<#ident> for Option<#ident #ty_generics> #where_clause {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_opt(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_opt(&stmt, sql.parameters).await?
+                        };
+                        match row {
+                            Some(row) => Ok(Some(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)),
+                            None => Ok(None),
+                        }
+                    })
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::Query<#ident> for Vec<#ident #ty_generics> #where_clause {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let row = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query_one(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = ::sqlm_postgres::connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query_one(&stmt, sql.parameters).await?
+                        };
+                        Ok(row.try_get(0)?)
+                    })
+                }
+            }
+        })
+    }
 }
 
 #[derive(Default)]
