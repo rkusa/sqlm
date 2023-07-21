@@ -123,18 +123,38 @@ async fn test_enum_property_vec() {
     );
 }
 
-// TODO:
-// #[tokio::test]
-// async fn test_enum_param() {
-//     let role = Role::Admin;
-//     let users: Vec<User> = sql!("SELECT id, role FROM users WHERE role = {role}")
-//         .await
-//         .unwrap();
-//     assert_eq!(
-//         users,
-//         vec![User {
-//             id: 1,
-//             role: Role::Admin,
-//         }]
-//     );
-// }
+#[tokio::test]
+async fn test_enum_param() {
+    let role = Role::Admin;
+    let users: Vec<User> = sql!("SELECT id, role FROM users WHERE role = {role}")
+        .await
+        .unwrap();
+    assert_eq!(
+        users,
+        vec![User {
+            id: 1,
+            role: Role::Admin,
+        }]
+    );
+}
+
+#[tokio::test]
+async fn test_enum_vec_param() {
+    let role = vec![Role::Admin, Role::User];
+    let users: Vec<User> = sql!("SELECT id, role FROM users WHERE role = ANY({role})")
+        .await
+        .unwrap();
+    assert_eq!(
+        users,
+        vec![
+            User {
+                id: 1,
+                role: Role::Admin,
+            },
+            User {
+                id: 2,
+                role: Role::User,
+            }
+        ]
+    );
+}

@@ -199,6 +199,54 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
         for (ty, param) in stmt.params().iter().zip(parameters) {
+            let enum_data = match ty.kind() {
+                Kind::Enum(variants) => Some((false, variants)),
+                Kind::Array(ty) => {
+                    if let Kind::Enum(variants) = ty.kind() {
+                        Some((true, variants))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some((is_array, variants)) = enum_data {
+                let n = variants.len();
+                let mut type_checks = Vec::with_capacity(n);
+                for variant in variants {
+                    #[cfg(not(nightly_column_names))]
+                    let name = {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut hasher = DefaultHasher::default();
+                        variant.hash(&mut hasher);
+                        hasher.finish() as usize
+                    };
+                    #[cfg(nightly_column_names)]
+                    let name = variant;
+                    if is_array {
+                        type_checks.push(quote! {
+                            {
+                                const fn assert_type<T: ::sqlm_postgres::HasVariant<#n, #name>>(_: &[T]) {}
+                                assert_type(&(#param));
+                            }
+                        });
+                    } else {
+                        type_checks.push(quote! {
+                            let _: &dyn ::sqlm_postgres::HasVariant<#n, #name> = &(#param);
+                        });
+                    }
+                }
+
+                typed_parameters.push(quote! {
+                    {
+                        #(#type_checks)*
+                        &(#param)
+                    }
+                });
+                continue;
+            }
+
             let Some((_, ty)) = postgres_to_rust_type(ty) else {
                 return syn::Error::new(
                     input.query.span(),
