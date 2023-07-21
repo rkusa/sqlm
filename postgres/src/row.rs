@@ -20,11 +20,9 @@ pub trait HasVariant<const N: usize, const NAME: usize> {}
 #[cfg(nightly_column_names)]
 pub trait HasVariant<const N: usize, const NAME: &'static str> {}
 
-#[cfg(feature = "comptime")]
 #[derive(Default)]
 pub struct Struct<T>(PhantomData<T>);
 
-#[cfg(feature = "comptime")]
 #[derive(Default)]
 pub struct Literal<T>(PhantomData<T>);
 

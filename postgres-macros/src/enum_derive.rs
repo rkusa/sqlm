@@ -112,16 +112,9 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             )*
 
             #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::FromRow<#ident> for #ident #ty_generics #where_clause {
-                fn from_row(row: ::sqlm_postgres::Row<#ident>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                    row.try_get(0)
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<#ident> for #ident #ty_generics #where_clause {
+            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Literal<#ident>> for #ident #ty_generics #where_clause {
                 fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<#ident>, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
@@ -132,7 +125,7 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        Ok(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)
+                        Ok(row.try_get(0)?)
                     })
                 }
             }

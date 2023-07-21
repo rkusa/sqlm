@@ -137,9 +137,9 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             }
 
             #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<#ident> for #ident #ty_generics #where_clause {
+            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Struct<#ident>> for #ident #ty_generics #where_clause {
                 fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Struct<#ident>, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
@@ -151,49 +151,6 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                             conn.query_one(&stmt, sql.parameters).await?
                         };
                         Ok(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)
-                    })
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<#ident> for Option<#ident #ty_generics> #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let row = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query_opt(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query_opt(&stmt, sql.parameters).await?
-                        };
-                        match row {
-                            Some(row) => Ok(Some(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)),
-                            None => Ok(None),
-                        }
-                    })
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<#ident> for Vec<#ident #ty_generics> #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, #ident, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let rows = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query(&stmt, sql.parameters).await?
-                        };
-                        rows.into_iter()
-                            .map(|row| ::sqlm_postgres::FromRow::<#ident>::from_row(row.into()).map_err(::sqlm_postgres::Error::from))
-                            .collect()
                     })
                 }
             }

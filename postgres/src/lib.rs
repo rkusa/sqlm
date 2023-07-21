@@ -22,8 +22,8 @@ pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
 #[cfg(feature = "comptime")]
-pub use row::{EnumArray, Literal, Struct};
-pub use row::{FromRow, HasColumn, HasVariant, Row};
+pub use row::EnumArray;
+pub use row::{FromRow, HasColumn, HasVariant, Literal, Row, Struct};
 pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
