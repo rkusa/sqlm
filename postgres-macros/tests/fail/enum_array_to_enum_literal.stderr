@@ -1,0 +1,10 @@
+error[E0277]: the trait bound `Role: Query<EnumArray<Cols>>` is not satisfied
+  --> tests/fail/enum_array_to_enum_literal.rs:17:10
+   |
+17 |         .await
+   |         -^^^^^ the trait `Query<EnumArray<Cols>>` is not implemented for `Role`
+   |         |
+   |         help: remove the `.await`
+   |
+   = help: the trait `Query<Literal<Cols>>` is implemented for `Role`
+   = note: required for `Sql<'_, EnumArray<Cols>, Role>` to implement `IntoFuture`

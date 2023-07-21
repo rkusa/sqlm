@@ -28,6 +28,10 @@ pub struct Struct<T>(PhantomData<T>);
 #[derive(Default)]
 pub struct Literal<T>(PhantomData<T>);
 
+#[cfg(feature = "comptime")]
+#[derive(Default)]
+pub struct EnumArray<T>(PhantomData<T>);
+
 impl<Cols> Deref for Row<Cols> {
     type Target = tokio_postgres::Row;
 

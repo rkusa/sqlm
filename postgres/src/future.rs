@@ -7,63 +7,96 @@ use crate::query::Query;
 use crate::{Error, Sql};
 
 #[cfg(feature = "comptime")]
-impl<'a, Cols, T> IntoFuture for Sql<'a, crate::Struct<Cols>, T>
-where
-    T: Query<crate::Struct<Cols>> + Send + Sync + 'a,
-    Cols: Send + Sync + 'a,
-{
-    type Output = Result<T, Error>;
-    type IntoFuture = SqlFuture<'a, T>;
+mod comptime {
+    use super::*;
 
-    fn into_future(self) -> Self::IntoFuture {
-        SqlFuture {
-            future: Box::pin(async move {
-                let mut i = 1;
-                loop {
-                    match T::query(&self).await {
-                        Ok(r) => return Ok(r),
-                        Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
-                            // retry pool size + 1 times if connection is closed (might have
-                            // received a closed one from the connection pool)
-                            i += 1;
-                            continue;
+    impl<'a, Cols, T> IntoFuture for Sql<'a, crate::Struct<Cols>, T>
+    where
+        T: Query<crate::Struct<Cols>> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
+        type Output = Result<T, Error>;
+        type IntoFuture = SqlFuture<'a, T>;
+
+        fn into_future(self) -> Self::IntoFuture {
+            SqlFuture {
+                future: Box::pin(async move {
+                    let mut i = 1;
+                    loop {
+                        match T::query(&self).await {
+                            Ok(r) => return Ok(r),
+                            Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
+                                // retry pool size + 1 times if connection is closed (might have
+                                // received a closed one from the connection pool)
+                                i += 1;
+                                continue;
+                            }
+                            Err(err) => return Err(err),
                         }
-                        Err(err) => return Err(err),
                     }
-                }
-            }),
-            marker: PhantomData,
+                }),
+                marker: PhantomData,
+            }
         }
     }
-}
 
-#[cfg(feature = "comptime")]
-impl<'a, Cols, T> IntoFuture for Sql<'a, crate::Literal<Cols>, T>
-where
-    T: Query<crate::Literal<Cols>> + Send + Sync + 'a,
-    Cols: Send + Sync + 'a,
-{
-    type Output = Result<T, Error>;
-    type IntoFuture = SqlFuture<'a, T>;
+    impl<'a, Cols, T> IntoFuture for Sql<'a, crate::Literal<Cols>, T>
+    where
+        T: Query<crate::Literal<Cols>> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
+        type Output = Result<T, Error>;
+        type IntoFuture = SqlFuture<'a, T>;
 
-    fn into_future(self) -> Self::IntoFuture {
-        SqlFuture {
-            future: Box::pin(async move {
-                let mut i = 1;
-                loop {
-                    match T::query(&self).await {
-                        Ok(r) => return Ok(r),
-                        Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
-                            // retry pool size + 1 times if connection is closed (might have
-                            // received a closed one from the connection pool)
-                            i += 1;
-                            continue;
+        fn into_future(self) -> Self::IntoFuture {
+            SqlFuture {
+                future: Box::pin(async move {
+                    let mut i = 1;
+                    loop {
+                        match T::query(&self).await {
+                            Ok(r) => return Ok(r),
+                            Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
+                                // retry pool size + 1 times if connection is closed (might have
+                                // received a closed one from the connection pool)
+                                i += 1;
+                                continue;
+                            }
+                            Err(err) => return Err(err),
                         }
-                        Err(err) => return Err(err),
                     }
-                }
-            }),
-            marker: PhantomData,
+                }),
+                marker: PhantomData,
+            }
+        }
+    }
+
+    impl<'a, Cols, T> IntoFuture for Sql<'a, crate::EnumArray<Cols>, T>
+    where
+        T: Query<crate::EnumArray<Cols>> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
+        type Output = Result<T, Error>;
+        type IntoFuture = SqlFuture<'a, T>;
+
+        fn into_future(self) -> Self::IntoFuture {
+            SqlFuture {
+                future: Box::pin(async move {
+                    let mut i = 1;
+                    loop {
+                        match T::query(&self).await {
+                            Ok(r) => return Ok(r),
+                            Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
+                                // retry pool size + 1 times if connection is closed (might have
+                                // received a closed one from the connection pool)
+                                i += 1;
+                                continue;
+                            }
+                            Err(err) => return Err(err),
+                        }
+                    }
+                }),
+                marker: PhantomData,
+            }
         }
     }
 }

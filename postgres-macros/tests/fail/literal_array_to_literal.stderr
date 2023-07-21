@@ -1,0 +1,10 @@
+error[E0277]: the trait bound `String: Query<Literal<Vec<String>>>` is not satisfied
+ --> tests/fail/literal_array_to_literal.rs:6:10
+  |
+6 |         .await
+  |         -^^^^^ the trait `Query<Literal<Vec<String>>>` is not implemented for `String`
+  |         |
+  |         help: remove the `.await`
+  |
+  = help: the trait `Query<Literal<String>>` is implemented for `String`
+  = note: required for `Sql<'_, Literal<Vec<String>>, String>` to implement `IntoFuture`

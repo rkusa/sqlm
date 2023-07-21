@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::{connect, Error, FromRow, Sql};
+use crate::{connect, Error, Sql};
 
 pub trait Query<Cols>: Sized {
     fn query<'a>(
@@ -10,104 +10,176 @@ pub trait Query<Cols>: Sized {
 }
 
 #[cfg(feature = "comptime")]
-impl<T, Cols> Query<crate::Struct<Cols>> for Option<T>
-where
-    Cols: Send + Sync,
-    T: FromRow<crate::Struct<Cols>> + Send + Sync,
-{
-    fn query<'a>(
-        sql: &'a Sql<'a, crate::Struct<Cols>, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_opt(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_opt(&stmt, sql.parameters).await?
-            };
-            match row {
-                Some(row) => Ok(Some(FromRow::<crate::Struct<Cols>>::from_row(row.into())?)),
-                None => Ok(None),
-            }
-        })
+mod comptime {
+    use super::*;
+    use crate::{EnumArray, FromRow, Literal, Struct};
+
+    impl<T, Cols> Query<Struct<Cols>> for Option<T>
+    where
+        Cols: Send + Sync,
+        T: FromRow<Struct<Cols>> + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, Struct<Cols>, Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_opt(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_opt(&stmt, sql.parameters).await?
+                };
+                match row {
+                    Some(row) => Ok(Some(FromRow::<Struct<Cols>>::from_row(row.into())?)),
+                    None => Ok(None),
+                }
+            })
+        }
+    }
+
+    impl<T, Cols> Query<Literal<Cols>> for Option<T>
+    where
+        Cols: Send + Sync,
+        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, Literal<Cols>, Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_opt(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_opt(&stmt, sql.parameters).await?
+                };
+                match row {
+                    Some(row) => Ok(row.try_get::<'_, _, Option<T>>(0)?),
+                    None => Ok(None),
+                }
+            })
+        }
+    }
+
+    impl<T, Cols> Query<Struct<Cols>> for Vec<T>
+    where
+        Cols: Send + Sync,
+        T: FromRow<Struct<Cols>> + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, Struct<Cols>, Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let rows = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query(&stmt, sql.parameters).await?
+                };
+                rows.into_iter()
+                    .map(|row| FromRow::<Struct<Cols>>::from_row(row.into()).map_err(Error::from))
+                    .collect()
+            })
+        }
+    }
+
+    impl<T, Cols> Query<Literal<Cols>> for Vec<T>
+    where
+        Cols: Send + Sync,
+        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, Literal<Cols>, Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_one(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_one(&stmt, sql.parameters).await?
+                };
+                Ok(row.try_get(0)?)
+            })
+        }
+    }
+
+    impl<T, Cols> Query<EnumArray<Cols>> for Vec<T>
+    where
+        Cols: Send + Sync,
+        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, EnumArray<Cols>, Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_one(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_one(&stmt, sql.parameters).await?
+                };
+                Ok(row.try_get(0)?)
+            })
+        }
     }
 }
 
-#[cfg(feature = "comptime")]
-impl<T, Cols> Query<crate::Literal<Cols>> for Option<T>
-where
-    Cols: Send + Sync,
-    T: tokio_postgres::types::FromSqlOwned + Send + Sync,
-{
-    fn query<'a>(
-        sql: &'a Sql<'a, crate::Literal<Cols>, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_opt(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_opt(&stmt, sql.parameters).await?
-            };
-            match row {
-                Some(row) => Ok(row.try_get::<'_, _, Option<T>>(0)?),
-                None => Ok(None),
-            }
-        })
-    }
-}
+#[cfg(not(feature = "comptime"))]
+mod nocomptime {
+    use super::*;
 
-#[cfg(feature = "comptime")]
-impl<T, Cols> Query<crate::Struct<Cols>> for Vec<T>
-where
-    Cols: Send + Sync,
-    T: FromRow<crate::Struct<Cols>> + Send + Sync,
-{
-    fn query<'a>(
-        sql: &'a Sql<'a, crate::Struct<Cols>, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let rows = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query(&stmt, sql.parameters).await?
-            };
-            rows.into_iter()
-                .map(|row| {
-                    FromRow::<crate::Struct<Cols>>::from_row(row.into()).map_err(Error::from)
-                })
-                .collect()
-        })
+    impl<T> Query<()> for Option<T>
+    where
+        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, (), Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_opt(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_opt(&stmt, sql.parameters).await?
+                };
+                match row {
+                    Some(row) => Ok(row.try_get::<'_, _, Option<T>>(0)?),
+                    None => Ok(None),
+                }
+            })
+        }
     }
-}
 
-#[cfg(feature = "comptime")]
-impl<T, Cols> Query<crate::Literal<Cols>> for Vec<T>
-where
-    Cols: Send + Sync,
-    T: tokio_postgres::types::FromSqlOwned + Send + Sync,
-{
-    fn query<'a>(
-        sql: &'a Sql<'a, crate::Literal<Cols>, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_one(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_one(&stmt, sql.parameters).await?
-            };
-            Ok(row.try_get(0)?)
-        })
+    impl<T> Query<()> for Vec<T>
+    where
+        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
+    {
+        fn query<'a>(
+            sql: &'a Sql<'a, (), Self>,
+        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+            Box::pin(async move {
+                let row = if let Some(tx) = sql.transaction {
+                    let stmt = tx.prepare_cached(sql.query).await?;
+                    tx.query_one(&stmt, sql.parameters).await?
+                } else {
+                    let conn = connect().await?;
+                    let stmt = conn.prepare_cached(sql.query).await?;
+                    conn.query_one(&stmt, sql.parameters).await?
+                };
+                Ok(row.try_get(0)?)
+            })
+        }
     }
 }
 
@@ -173,51 +245,6 @@ macro_rules! impl_query_scalar {
                     };
                     Ok(row.try_get(0)?)
                 })
-            }
-        }
-
-        impl Query<()> for Option<$ty> {
-            fn query<'a>(
-                sql: &'a Sql<'a, (), Self>,
-            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-                Box::pin(async move {
-                    let row = if let Some(tx) = sql.transaction {
-                        let stmt = tx.prepare_cached(sql.query).await?;
-                        tx.query_opt(&stmt, sql.parameters).await?
-                    } else {
-                        let conn = connect().await?;
-                        let stmt = conn.prepare_cached(sql.query).await?;
-                        conn.query_opt(&stmt, sql.parameters).await?
-                    };
-                    match row {
-                        Some(row) => Ok(row.try_get::<'_, _, Option<$ty>>(0)?),
-                        None => Ok(None),
-                    }
-                })
-            }
-        }
-
-        impl Query<()> for Vec<$ty> {
-            fn query<'a>(
-                sql: &'a Sql<'a, (), Self>,
-            ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-                Box::pin(async move {
-                    let row = if let Some(tx) = sql.transaction {
-                        let stmt = tx.prepare_cached(sql.query).await?;
-                        tx.query_one(&stmt, sql.parameters).await?
-                    } else {
-                        let conn = connect().await?;
-                        let stmt = conn.prepare_cached(sql.query).await?;
-                        conn.query_one(&stmt, sql.parameters).await?
-                    };
-                    Ok(row.try_get(0)?)
-                })
-            }
-        }
-
-        impl FromRow<()> for $ty {
-            fn from_row(row: crate::row::Row<()>) -> Result<Self, tokio_postgres::Error> {
-                row.try_get(0)
             }
         }
     };

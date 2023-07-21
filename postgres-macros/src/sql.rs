@@ -221,18 +221,18 @@ pub fn sql(item: TokenStream) -> TokenStream {
         if col_count == 1 {
             // Consider the result to be a literal
             let ty = stmt.columns()[0].type_();
-            let variants = match ty.kind() {
-                Kind::Enum(variants) => Some(variants),
+            let enum_data: Option<(proc_macro2::Ident, &[String])> = match ty.kind() {
+                Kind::Enum(variants) => Some((syn::parse_quote!(Literal), variants)),
                 Kind::Array(ty) => {
                     if let Kind::Enum(variants) = ty.kind() {
-                        Some(variants)
+                        Some((syn::parse_quote!(EnumArray), variants))
                     } else {
                         None
                     }
                 }
                 _ => None,
             };
-            if let Some(variants) = variants {
+            if let Some((marker_ident, variants)) = enum_data {
                 let n = variants.len();
                 let mut variant_traits = Vec::with_capacity(n);
                 for variant in variants {
@@ -257,7 +257,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
                         #(#variant_traits)*
 
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<Cols>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::#marker_ident<Cols>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,
