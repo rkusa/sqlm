@@ -337,17 +337,18 @@ fn postgres_to_rust_type(
 
         // serde_json::Value
         #[cfg(feature = "json")]
-        ty if <serde_json::Value as FromSql>::accepts(ty) => {
-            Some((quote!(serde_json::Value), quote!(serde_json::Value)))
+        ty if <::serde_json::Value as FromSql>::accepts(ty) => {
+            Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
         }
         #[cfg(feature = "json")]
-        ty if <Vec<serde_json::Value> as FromSql>::accepts(ty) => {
-            Some((quote!(Vec<serde_json::Value>), quote!([serde_json::Value])))
-        }
+        ty if <Vec<::serde_json::Value> as FromSql>::accepts(ty) => Some((
+            quote!(Vec<::serde_json::Value>),
+            quote!([::serde_json::Value]),
+        )),
 
         // time::OffsetDateTime
         #[cfg(feature = "time")]
-        ty if <time::OffsetDateTime as FromSql>::accepts(ty) => Some((
+        ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => Some((
             quote!(::time::OffsetDateTime),
             quote!(::time::OffsetDateTime),
         )),
@@ -359,12 +360,12 @@ fn postgres_to_rust_type(
 
         // uuid::Uuid
         #[cfg(feature = "uuid")]
-        ty if <uuid::Uuid as FromSql>::accepts(ty) => {
+        ty if <::uuid::Uuid as FromSql>::accepts(ty) => {
             Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
         }
         #[cfg(feature = "uuid")]
-        ty if <Vec<uuid::Uuid> as FromSql>::accepts(ty) => {
-            Some((quote!(Vec<uuid::Uuid>), quote!([uuid::Uuid])))
+        ty if <Vec<::uuid::Uuid> as FromSql>::accepts(ty) => {
+            Some((quote!(Vec<::uuid::Uuid>), quote!([::uuid::Uuid])))
         }
 
         // Unsupported

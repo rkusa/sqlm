@@ -21,9 +21,9 @@ where
                 loop {
                     match T::query(&self).await {
                         Ok(r) => return Ok(r),
-                        Err(Error::Postgres(err)) if err.is_closed() && i <= 1 => {
-                            // retry once if connection is closed (might have received a closed one
-                            // from the connection pool)
+                        Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
+                            // retry pool size + 1 times if connection is closed (might have
+                            // received a closed one from the connection pool)
                             i += 1;
                             continue;
                         }

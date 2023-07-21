@@ -9,30 +9,6 @@ pub trait Query<Cols>: Sized {
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>;
 }
 
-impl<T, Cols> Query<Cols> for Vec<T>
-where
-    Cols: Send + Sync,
-    T: FromRow<Cols> + Send + Sync,
-{
-    fn query<'a>(
-        sql: &'a Sql<'a, Cols, Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let rows = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query(&stmt, sql.parameters).await?
-            };
-            rows.into_iter()
-                .map(|row| FromRow::<Cols>::from_row(row.into()).map_err(Error::from))
-                .collect()
-        })
-    }
-}
-
 impl<T, Cols> Query<Cols> for Option<T>
 where
     Cols: Send + Sync,
@@ -149,8 +125,29 @@ macro_rules! impl_query_scalar {
     };
 }
 
+impl_query_scalar!(i32);
+impl_query_scalar!(Vec<i32>);
+
 impl_query_scalar!(i64);
+impl_query_scalar!(Vec<i64>);
+
 impl_query_scalar!(bool);
+impl_query_scalar!(Vec<bool>);
+
 impl_query_scalar!(String);
+impl_query_scalar!(Vec<String>);
+
 #[cfg(feature = "json")]
 impl_query_scalar!(serde_json::Value);
+#[cfg(feature = "json")]
+impl_query_scalar!(Vec<serde_json::Value>);
+
+#[cfg(feature = "time")]
+impl_query_scalar!(time::OffsetDateTime);
+#[cfg(feature = "time")]
+impl_query_scalar!(Vec<time::OffsetDateTime>);
+
+#[cfg(feature = "uuid")]
+impl_query_scalar!(uuid::Uuid);
+#[cfg(feature = "uuid")]
+impl_query_scalar!(Vec<uuid::Uuid>);

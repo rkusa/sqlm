@@ -121,6 +121,31 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                     })
                 }
             }
+
+            #[automatically_derived]
+            impl #impl_generics_with_cols ::sqlm_postgres::Query<Cols> for Vec<#ident #ty_generics>
+            where
+                Cols: Send + Sync,
+                #where_predicates
+            {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, Cols, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let rows = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query(&stmt, sql.parameters).await?
+                        };
+                        rows.into_iter()
+                            .map(|row| ::sqlm_postgres::FromRow::<Cols>::from_row(row.into()).map_err(::sqlm_postgres::Error::from))
+                            .collect()
+                    })
+                }
+            }
         })
     }
     #[cfg(not(feature = "comptime"))]
@@ -135,7 +160,6 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                     })
                 }
             }
-
 
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::AnyCols> for #ident #ty_generics #where_clause {
@@ -152,6 +176,28 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                             conn.query_one(&stmt, sql.parameters).await?
                         };
                         Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::AnyCols>::from_row(row.into())?)
+                    })
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::AnyCols> for Vec<#ident #ty_generics> #where_clause
+            {
+                fn query<'a>(
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::AnyCols, Self>,
+                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
+                    Box::pin(async move {
+                        let rows = if let Some(tx) = sql.transaction {
+                            let stmt = tx.prepare_cached(sql.query).await?;
+                            tx.query(&stmt, sql.parameters).await?
+                        } else {
+                            let conn = connect().await?;
+                            let stmt = conn.prepare_cached(sql.query).await?;
+                            conn.query(&stmt, sql.parameters).await?
+                        };
+                        rows.into_iter()
+                            .map(|row| ::sqlm_postgres::FromRow::<::sqlm_postgres::AnyCols>::from_row(row.into()).map_err(::sqlm_postgres::Error::from))
+                            .collect()
                     })
                 }
             }
