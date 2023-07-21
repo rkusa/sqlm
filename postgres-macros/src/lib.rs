@@ -39,15 +39,5 @@ pub fn derive_enum(_input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn sql(item: TokenStream) -> TokenStream {
-    sql::sql(item, sql::Opts::default())
-}
-
-#[proc_macro]
-pub fn sql_unchecked(item: TokenStream) -> TokenStream {
-    sql::sql(
-        item,
-        sql::Opts {
-            skip_query_check: true,
-        },
-    )
+    sql::sql(item)
 }

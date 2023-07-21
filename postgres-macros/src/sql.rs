@@ -12,12 +12,7 @@ use syn::{parse_macro_input, Expr, LitStr};
 
 use crate::parser::{self, Argument, Token};
 
-#[derive(Debug, Default)]
-pub struct Opts {
-    pub skip_query_check: bool,
-}
-
-pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
+pub fn sql(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Input);
     // dbg!(&input);
 
@@ -153,10 +148,8 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         }
     }
 
-    #[cfg(not(feature = "comptime"))]
-    let _ = opts; // prevent unused warning
     #[cfg(feature = "comptime")]
-    if !opts.skip_query_check {
+    {
         use std::str::FromStr;
 
         use postgres::types::Kind;
@@ -313,7 +306,7 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             };
         }
 
-        return quote! {
+        quote! {
             {
                 pub struct Cols;
 
@@ -325,19 +318,6 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
                     transaction: None,
                     marker: ::std::marker::PhantomData,
                 }
-            }
-        }
-        .into();
-    }
-
-    #[cfg(feature = "comptime")]
-    {
-        quote! {
-            ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::AnyCols, _> {
-                query: #result,
-                parameters: &[#(&(#parameters),)*],
-                transaction: None,
-                marker: ::std::marker::PhantomData,
             }
         }
         .into()

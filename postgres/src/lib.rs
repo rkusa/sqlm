@@ -21,10 +21,8 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
-#[cfg(feature = "comptime")]
-pub use row::AnyCols;
 pub use row::{FromRow, HasColumn, HasVariant, Literal, Row};
-pub use sqlm_postgres_macros::{sql, sql_unchecked, Enum, FromRow};
+pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::types::ToSql;
