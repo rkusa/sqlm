@@ -341,23 +341,22 @@ pub fn sql(item: TokenStream) -> TokenStream {
 fn postgres_to_rust_type(
     ty: &postgres::types::Type,
 ) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
-    use postgres::types::FromSql;
+    use postgres::types::{FromSql, Kind};
+
+    if let Kind::Array(ty) = ty.kind() {
+        // reject nested array
+        if matches!(ty.kind(), Kind::Array(_)) {
+            return None;
+        }
+
+        return postgres_to_rust_type(ty).map(|(ty, _)| (quote!(Vec<#ty>), quote!([#ty])));
+    }
 
     match ty {
         ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str))),
-        ty if <Vec<String> as FromSql>::accepts(ty) => {
-            Some((quote!(Vec<String>), quote!([String])))
-        }
-
         ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64))),
-        ty if <Vec<i64> as FromSql>::accepts(ty) => Some((quote!(Vec<i64>), quote!([i64]))),
-
         ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
-        ty if <Vec<i32> as FromSql>::accepts(ty) => Some((quote!(Vec<i32>), quote!([i32]))),
-
         ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
-        ty if <Vec<bool> as FromSql>::accepts(ty) => Some((quote!(Vec<bool>), quote!([bool]))),
-
         ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
 
         // serde_json::Value
@@ -365,11 +364,6 @@ fn postgres_to_rust_type(
         ty if <::serde_json::Value as FromSql>::accepts(ty) => {
             Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
         }
-        #[cfg(feature = "json")]
-        ty if <Vec<::serde_json::Value> as FromSql>::accepts(ty) => Some((
-            quote!(Vec<::serde_json::Value>),
-            quote!([::serde_json::Value]),
-        )),
 
         // time::OffsetDateTime
         #[cfg(feature = "time")]
@@ -377,20 +371,11 @@ fn postgres_to_rust_type(
             quote!(::time::OffsetDateTime),
             quote!(::time::OffsetDateTime),
         )),
-        #[cfg(feature = "time")]
-        ty if <Vec<::time::OffsetDateTime> as FromSql>::accepts(ty) => Some((
-            quote!(Vec<::time::OffsetDateTime>),
-            quote!([::time::OffsetDateTime]),
-        )),
 
         // uuid::Uuid
         #[cfg(feature = "uuid")]
         ty if <::uuid::Uuid as FromSql>::accepts(ty) => {
             Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
-        }
-        #[cfg(feature = "uuid")]
-        ty if <Vec<::uuid::Uuid> as FromSql>::accepts(ty) => {
-            Some((quote!(Vec<::uuid::Uuid>), quote!([::uuid::Uuid])))
         }
 
         // Unsupported
