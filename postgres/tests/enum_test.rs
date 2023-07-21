@@ -86,25 +86,24 @@ async fn test_enum_property_option() {
     );
 }
 
-// TODO:
-// #[tokio::test]
-// async fn test_enum_vec_property() {
-//     #[derive(Debug, PartialEq, Eq, FromRow)]
-//     struct User {
-//         id: i64,
-//         roles: Vec<Role>,
-//     }
-//     let user: User = sql!("SELECT 1, ARRAY['admin', 'user']::role[] AS roles")
-//         .await
-//         .unwrap();
-//     assert_eq!(
-//         user,
-//         User {
-//             id: 1,
-//             roles: vec![Role::Admin, Role::User],
-//         }
-//     );
-// }
+#[tokio::test]
+async fn test_enum_vec_property() {
+    #[derive(Debug, PartialEq, Eq, FromRow)]
+    struct User {
+        id: i64,
+        roles: Vec<Role>,
+    }
+    let user: User = sql!("SELECT 1::BIGINT AS id, ARRAY['admin', 'user']::role[] AS roles")
+        .await
+        .unwrap();
+    assert_eq!(
+        user,
+        User {
+            id: 1,
+            roles: vec![Role::Admin, Role::User],
+        }
+    );
+}
 
 #[tokio::test]
 async fn test_enum_property_vec() {

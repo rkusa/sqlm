@@ -303,9 +303,21 @@ pub fn sql(item: TokenStream) -> TokenStream {
             #[cfg(nightly_column_names)]
             let name = column.name();
 
-            if let Kind::Enum(variants) = ty.kind() {
+            let enum_data = match ty.kind() {
+                Kind::Enum(variants) => Some((quote!(T), variants)),
+                Kind::Array(ty) => {
+                    if let Kind::Enum(variants) = ty.kind() {
+                        Some((quote!(Vec<T>), variants))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some((ty, variants)) = enum_data {
                 columns.push(quote! {
-                    impl<T> ::sqlm_postgres::HasColumn<T, #name> for Cols where
+                    impl<T> ::sqlm_postgres::HasColumn<#ty, #name> for Cols where
                 });
 
                 let n = variants.len();
