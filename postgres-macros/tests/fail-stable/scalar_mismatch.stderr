@@ -1,11 +1,10 @@
-error[E0277]: the trait bound `Cols: HasScalar<String>` is not satisfied
+error[E0277]: the trait bound `String: Query<Literal<i64>>` is not satisfied
  --> tests/fail-stable/scalar_mismatch.rs:5:56
   |
 5 |     let _: String = sql!("SELECT COUNT(*) FROM users").await.unwrap();
-  |                                                       -^^^^^ the trait `HasScalar<String>` is not implemented for `Cols`
+  |                                                       -^^^^^ the trait `Query<Literal<i64>>` is not implemented for `String`
   |                                                       |
   |                                                       help: remove the `.await`
   |
-  = help: the trait `HasScalar<i64>` is implemented for `Cols`
-  = note: required for `String` to implement `Query<Cols>`
-  = note: required for `Sql<'_, Cols, String>` to implement `IntoFuture`
+  = help: the trait `Query<Literal<String>>` is implemented for `String`
+  = note: required for `Sql<'_, Literal<i64>, String>` to implement `IntoFuture`

@@ -135,7 +135,9 @@ mod time {
 
     #[tokio::test]
     async fn test_datetime() {
-        let expected = ::time::OffsetDateTime::now_utc();
+        let expected = ::time::OffsetDateTime::now_utc()
+            .replace_nanosecond(0)
+            .unwrap();
         let val: ::time::OffsetDateTime = sql!("SELECT {expected}::TIMESTAMP WITH TIME ZONE")
             .await
             .unwrap();
@@ -144,7 +146,9 @@ mod time {
 
     #[tokio::test]
     async fn test_datetime_option() {
-        let expected = ::time::OffsetDateTime::now_utc();
+        let expected = ::time::OffsetDateTime::now_utc()
+            .replace_nanosecond(0)
+            .unwrap();
         let val: ::time::OffsetDateTime = sql!("SELECT {expected}::TIMESTAMP WITH TIME ZONE")
             .await
             .unwrap();
@@ -153,10 +157,10 @@ mod time {
 
     #[tokio::test]
     async fn test_datetime_vec() {
-        let expected = vec![
-            ::time::OffsetDateTime::now_utc(),
-            ::time::OffsetDateTime::now_utc() - ::time::Duration::minutes(5),
-        ];
+        let expected = ::time::OffsetDateTime::now_utc()
+            .replace_nanosecond(0)
+            .unwrap();
+        let expected = vec![expected, expected - ::time::Duration::minutes(5)];
         let val: Vec<::time::OffsetDateTime> =
             sql!("SELECT {expected}::TIMESTAMP WITH TIME ZONE[]")
                 .await

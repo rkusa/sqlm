@@ -204,8 +204,56 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             }
         };
 
-        let mut columns = Vec::with_capacity(stmt.columns().len());
+        let mut typed_parameters = Vec::with_capacity(parameters.len());
+        for (ty, param) in stmt.params().iter().zip(parameters) {
+            let Some((_, ty)) = postgres_to_rust_type(ty) else {
+                return syn::Error::new(
+                    input.query.span(),
+                    format!("unsupporte postgres type: {ty:?}"),
+                )
+                .into_compile_error()
+                .into();
+            };
+
+            typed_parameters.push(quote! {
+                {
+                    let _: &#ty = &(#param);
+                    &(#param)
+                }
+            });
+        }
+
+        // TODO: enmum literal support
         let col_count = stmt.columns().len();
+        if col_count == 1 {
+            // Consider the result to be a literal
+            //
+            let ty = stmt.columns()[0].type_();
+            let ty = if let Some((ty, _)) = postgres_to_rust_type(ty) {
+                ty
+            } else {
+                return syn::Error::new(
+                    input.query.span(),
+                    format!("unsupported postgres type: {ty:?}"),
+                )
+                .into_compile_error()
+                .into();
+            };
+
+            return quote! {
+                {
+                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#ty>, _> {
+                        query: #result,
+                        parameters: &[#(&(#typed_parameters),)*],
+                        transaction: None,
+                        marker: ::std::marker::PhantomData,
+                    }
+                }
+            }
+            .into();
+        }
+
+        let mut columns = Vec::with_capacity(stmt.columns().len());
         for column in stmt.columns() {
             let ty = column.type_();
 
@@ -265,25 +313,6 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
             };
         }
 
-        let mut typed_parameters = Vec::with_capacity(parameters.len());
-        for (ty, param) in stmt.params().iter().zip(parameters) {
-            let Some((_, ty)) = postgres_to_rust_type(ty) else {
-                return syn::Error::new(
-                    input.query.span(),
-                    format!("unsupporte postgres type: {ty:?}"),
-                )
-                .into_compile_error()
-                .into();
-            };
-
-            typed_parameters.push(quote! {
-                {
-                    let _: &#ty = &(#param);
-                    &(#param)
-                }
-            });
-        }
-
         return quote! {
             {
                 pub struct Cols;
@@ -301,15 +330,31 @@ pub fn sql(item: TokenStream, opts: Opts) -> TokenStream {
         .into();
     }
 
-    quote! {
-        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::AnyCols, _> {
-            query: #result,
-            parameters: &[#(&(#parameters),)*],
-            transaction: None,
-            marker: ::std::marker::PhantomData,
+    #[cfg(feature = "comptime")]
+    {
+        quote! {
+            ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::AnyCols, _> {
+                query: #result,
+                parameters: &[#(&(#parameters),)*],
+                transaction: None,
+                marker: ::std::marker::PhantomData,
+            }
         }
+        .into()
     }
-    .into()
+
+    #[cfg(not(feature = "comptime"))]
+    {
+        quote! {
+            ::sqlm_postgres::Sql::<'_, _, _> {
+                query: #result,
+                parameters: &[#(&(#parameters),)*],
+                transaction: None,
+                marker: ::std::marker::PhantomData,
+            }
+        }
+        .into()
+    }
 }
 
 #[cfg(feature = "comptime")]
