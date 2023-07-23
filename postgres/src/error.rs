@@ -8,6 +8,7 @@ pub enum Error {
     Postgres(tokio_postgres::Error),
     Build(deadpool_postgres::BuildError),
     Pool(deadpool_postgres::PoolError),
+    FromStr(Box<dyn error::Error + Send + 'static>),
 }
 
 impl error::Error for Error {
@@ -17,6 +18,7 @@ impl error::Error for Error {
             Error::Postgres(err) => Some(err),
             Error::Build(err) => Some(err),
             Error::Pool(err) => Some(err),
+            Error::FromStr(err) => Some(err.as_ref()),
         }
     }
 }
@@ -28,6 +30,7 @@ impl fmt::Display for Error {
             Error::Postgres(err) => err.fmt(f),
             Error::Build(_) => write!(f, "failed to build postgres connection pool"),
             Error::Pool(_) => write!(f, "failed to acquire postgress connection from pool"),
+            Error::FromStr(err) => err.fmt(f),
         }
     }
 }

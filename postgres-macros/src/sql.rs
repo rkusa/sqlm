@@ -443,10 +443,9 @@ pub fn sql(item: TokenStream) -> TokenStream {
 }
 
 #[cfg(feature = "comptime")]
-fn postgres_to_rust_type(
-    ty: &postgres::types::Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
+fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<(syn::Type, syn::Type)> {
     use postgres::types::{FromSql, Kind};
+    use syn::parse_quote;
 
     if let Kind::Array(ty) = ty.kind() {
         // reject nested array
@@ -454,33 +453,37 @@ fn postgres_to_rust_type(
             return None;
         }
 
-        return postgres_to_rust_type(ty).map(|(ty, _)| (quote!(Vec<#ty>), quote!([#ty])));
+        return postgres_to_rust_type(ty)
+            .map(|(ty, _)| (parse_quote!(Vec<#ty>), parse_quote!([#ty])));
     }
 
     match ty {
-        ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str))),
-        ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64))),
-        ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
-        ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
-        ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
+        ty if <String as FromSql>::accepts(ty) => Some((parse_quote!(String), parse_quote!(str))),
+        ty if <i64 as FromSql>::accepts(ty) => Some((parse_quote!(i64), parse_quote!(i64))),
+        ty if <i32 as FromSql>::accepts(ty) => Some((parse_quote!(i32), parse_quote!(i32))),
+        ty if <bool as FromSql>::accepts(ty) => Some((parse_quote!(bool), parse_quote!(bool))),
+        ty if <Vec<u8> as FromSql>::accepts(ty) => {
+            Some((parse_quote!(Vec<u8>), parse_quote!([u8])))
+        }
 
         // serde_json::Value
         #[cfg(feature = "json")]
-        ty if <::serde_json::Value as FromSql>::accepts(ty) => {
-            Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
-        }
+        ty if <::serde_json::Value as FromSql>::accepts(ty) => Some((
+            parse_quote!(::serde_json::Value),
+            parse_quote!(::serde_json::Value),
+        )),
 
         // time::OffsetDateTime
         #[cfg(feature = "time")]
         ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => Some((
-            quote!(::time::OffsetDateTime),
-            quote!(::time::OffsetDateTime),
+            parse_quote!(::time::OffsetDateTime),
+            parse_quote!(::time::OffsetDateTime),
         )),
 
         // uuid::Uuid
         #[cfg(feature = "uuid")]
         ty if <::uuid::Uuid as FromSql>::accepts(ty) => {
-            Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
+            Some((parse_quote!(::uuid::Uuid), parse_quote!(::uuid::Uuid)))
         }
 
         // Unsupported

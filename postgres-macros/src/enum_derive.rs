@@ -74,8 +74,8 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             where
                 #where_predicates
             {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                    row.try_get(0)
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::Error> {
+                    Ok(row.try_get(0)?)
                 }
             }
 
@@ -97,7 +97,7 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())?)
+                        ::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())
                     })
                 }
             }

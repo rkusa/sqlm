@@ -7,7 +7,7 @@ pub struct Row<Cols> {
 }
 
 pub trait FromRow<Cols>: Sized {
-    fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error>;
+    fn from_row(row: Row<Cols>) -> Result<Self, crate::error::Error>;
 }
 
 #[cfg(not(nightly_column_names))]
