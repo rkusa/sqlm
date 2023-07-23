@@ -46,3 +46,14 @@ impl<Cols> From<tokio_postgres::Row> for Row<Cols> {
         }
     }
 }
+
+#[cfg(not(nightly_column_names))]
+impl<T, const N: usize, const NAME: usize> HasVariant<N, NAME> for Option<T> where
+    T: HasVariant<N, NAME>
+{
+}
+#[cfg(nightly_column_names)]
+impl<T, const N: usize, const NAME: &'static str> HasVariant<N, NAME> for Option<T> where
+    T: HasVariant<N, NAME>
+{
+}

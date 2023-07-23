@@ -256,9 +256,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 .into();
             };
 
+            // `Option::from` is used to allow parameters to be an Option
             typed_parameters.push(quote! {
                 {
-                    let _: &#ty = &(#param);
+                    if false {
+                        let _: &#ty = Option::from(&(#param)).unwrap();
+                    }
                     &(#param)
                 }
             });
