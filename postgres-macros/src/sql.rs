@@ -247,7 +247,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 continue;
             }
 
-            let Some((_, ty)) = postgres_to_rust_type(ty) else {
+            let Some((ty_owned, ty_borrowed)) = postgres_to_rust_type(ty) else {
                 return syn::Error::new(
                     input.query.span(),
                     format!("unsupporte postgres type: {ty:?}"),
@@ -260,7 +260,8 @@ pub fn sql(item: TokenStream) -> TokenStream {
             typed_parameters.push(quote! {
                 {
                     if false {
-                        let _: &#ty = Option::from(&(#param)).unwrap();
+                        let _: ::sqlm_postgres::internal::Valid<#ty_borrowed, #ty_owned> = ::sqlm_postgres::internal::Valid::from(#param);
+                        unreachable!();
                     }
                     &(#param)
                 }

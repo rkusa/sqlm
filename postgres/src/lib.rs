@@ -7,6 +7,8 @@ extern crate self as sqlm_postgres;
 
 mod error;
 mod future;
+#[cfg(feature = "comptime")]
+pub mod internal;
 mod query;
 mod row;
 
