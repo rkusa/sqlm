@@ -52,10 +52,13 @@ pub fn sql(item: TokenStream) -> TokenStream {
     let mut result = String::with_capacity(query.len());
     let mut parameters = Vec::new();
 
-    let Ok(tokens) = parser::parse(&query) else {
-        return syn::Error::new(input.query.span(), "invalid format string")
-            .into_compile_error()
-            .into();
+    let tokens = match parser::parse(&query) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            return syn::Error::new(input.query.span(), err)
+                .into_compile_error()
+                .into();
+        }
     };
 
     for token in tokens {

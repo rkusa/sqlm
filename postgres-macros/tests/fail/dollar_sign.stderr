@@ -1,0 +1,5 @@
+error: use {} instead of $x for positional parameters
+ --> tests/fail/dollar_sign.rs:2:32
+  |
+2 |     sqlm_postgres_macros::sql!("SELECT {id} = $1", id = 1);
+  |                                ^^^^^^^^^^^^^^^^^^
