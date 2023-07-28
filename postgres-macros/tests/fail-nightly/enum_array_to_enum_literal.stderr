@@ -1,0 +1,10 @@
+error[E0277]: the trait bound `Role: Query<Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>>>` is not satisfied
+  --> tests/fail-nightly/enum_array_to_enum_literal.rs:17:10
+   |
+17 |         .await
+   |         -^^^^^ the trait `Query<Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>>>` is not implemented for `Role`
+   |         |
+   |         help: remove the `.await`
+   |
+   = help: the trait `Query<Literal<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>>` is implemented for `Role`
+   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>>, Role>` to implement `IntoFuture`

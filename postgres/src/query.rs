@@ -12,7 +12,6 @@ pub trait Query<Cols>: Sized {
 #[cfg(feature = "comptime")]
 mod comptime {
     use super::*;
-    use crate::EnumArray;
 
     impl<T, Cols> Query<Struct<Cols>> for Option<T>
     where
@@ -95,28 +94,6 @@ mod comptime {
     {
         fn query<'a>(
             sql: &'a Sql<'a, Literal<Cols>, Self>,
-        ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-            Box::pin(async move {
-                let row = if let Some(tx) = sql.transaction {
-                    let stmt = tx.prepare_cached(sql.query).await?;
-                    tx.query_one(&stmt, sql.parameters).await?
-                } else {
-                    let conn = connect().await?;
-                    let stmt = conn.prepare_cached(sql.query).await?;
-                    conn.query_one(&stmt, sql.parameters).await?
-                };
-                Ok(row.try_get(0)?)
-            })
-        }
-    }
-
-    impl<T, Cols> Query<EnumArray<Cols>> for Vec<T>
-    where
-        Cols: Send + Sync,
-        T: tokio_postgres::types::FromSqlOwned + Send + Sync,
-    {
-        fn query<'a>(
-            sql: &'a Sql<'a, EnumArray<Cols>, Self>,
         ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
             Box::pin(async move {
                 let row = if let Some(tx) = sql.transaction {

@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path};
+use syn::{parse_quote, token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path, Type};
 
 use crate::rename::RenameAll;
 
@@ -28,15 +28,9 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let mut new_generics = generics.clone();
     new_generics.params.push(parse_quote!(Cols));
-    let (impl_generics_with_cols, _, _) = new_generics.split_for_impl();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let mut where_predicates = where_clause
-        .map(|w| w.predicates.clone())
-        .unwrap_or_default();
 
-    let mut has_variant_impls = Vec::with_capacity(variants.len());
-    let n = variants.len();
-
+    let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
     for v in variants {
         let vopts = extract_variant_options(&v.attrs)?;
         let mut name = v.ident.to_string();
@@ -56,42 +50,29 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             hasher.finish() as usize
         };
 
-        has_variant_impls.push(quote! {
-            impl #impl_generics ::sqlm_postgres::HasVariant<#n, #name> for #ident #ty_generics #where_clause {}
-        });
-        where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::HasVariant<#n, #name>));
+        enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
     }
 
     #[cfg(feature = "comptime")]
     {
+        let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
         Ok(quote! {
-            #(
-                #has_variant_impls
-            )*
-
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
-                type Type = Self;
+                type Type = #enum_struct;
             }
 
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<::sqlm_postgres::Literal<Cols>> for #ident #ty_generics
-            where
-                #where_predicates
-            {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+            impl #impl_generics ::sqlm_postgres::FromRow<::sqlm_postgres::Literal<#enum_struct>> for #ident #ty_generics #where_clause {
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<#enum_struct>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                     row.try_get(0)
                 }
             }
 
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::Query<::sqlm_postgres::Literal<Cols>> for #ident #ty_generics
-            where
-                Cols: Send + Sync,
-                #where_predicates
-            {
+            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Literal<#enum_struct>> for #ident #ty_generics #where_clause {
                 fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<Cols>, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<#enum_struct>, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
@@ -102,7 +83,7 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())?)
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<#enum_struct>>::from_row(row.into())?)
                     })
                 }
             }
@@ -110,12 +91,7 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
     }
     #[cfg(not(feature = "comptime"))]
     {
-        let _ = impl_generics_with_cols;
         Ok(quote! {
-            #(
-                #has_variant_impls
-            )*
-
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
                 type Type = Self;

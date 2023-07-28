@@ -1,0 +1,10 @@
+error[E0277]: the trait bound `Role: Query<Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>>>` is not satisfied
+  --> tests/fail-stable/enum_array_to_enum_literal.rs:17:10
+   |
+17 |         .await
+   |         -^^^^^ the trait `Query<Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>>>` is not implemented for `Role`
+   |         |
+   |         help: remove the `.await`
+   |
+   = help: the trait `Query<Literal<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>>` is implemented for `Role`
+   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>>, Role>` to implement `IntoFuture`

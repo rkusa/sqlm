@@ -157,6 +157,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
         use postgres::types::Kind;
         use postgres::Config;
+        use syn::{parse_quote, Type};
 
         let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
             return syn::Error::new(
@@ -214,8 +215,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 _ => None,
             };
             if let Some((is_array, variants)) = enum_data {
-                let n = variants.len();
-                let mut type_checks = Vec::with_capacity(n);
+                let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
                     #[cfg(not(nightly_column_names))]
                     let name = {
@@ -227,23 +227,29 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     };
                     #[cfg(nightly_column_names)]
                     let name = variant;
-                    if is_array {
-                        type_checks.push(quote! {
-                            {
-                                const fn assert_type<T: ::sqlm_postgres::HasVariant<#n, #name>>(_: &[T]) {}
-                                assert_type(&(#param));
-                            }
-                        });
-                    } else {
-                        type_checks.push(quote! {
-                            let _: &dyn ::sqlm_postgres::HasVariant<#n, #name> = &(#param);
-                        });
-                    }
+                    enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
+
+                let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
+                let type_check = if is_array {
+                    quote! {
+                        {
+                            const fn assert_type<T: ::sqlm_postgres::SqlType<Type = #enum_struct>>(_: &[T]) {}
+                            assert_type(&(#param));
+                        }
+                    }
+                } else {
+                    quote! {
+                        {
+                            const fn assert_type<T: ::sqlm_postgres::SqlType<Type = #enum_struct>>(_: &T) {}
+                            assert_type(&(#param));
+                        }
+                    }
+                };
 
                 typed_parameters.push(quote! {
                     {
-                        #(#type_checks)*
+                        #type_check
                         &(#param)
                     }
                 });
@@ -276,20 +282,19 @@ pub fn sql(item: TokenStream) -> TokenStream {
         if col_count == 1 {
             // Consider the result to be a literal
             let ty = stmt.columns()[0].type_();
-            let enum_data: Option<(proc_macro2::Ident, &[String])> = match ty.kind() {
-                Kind::Enum(variants) => Some((syn::parse_quote!(Literal), variants)),
+            let enum_data: Option<(bool, &[String])> = match ty.kind() {
+                Kind::Enum(variants) => Some((false, variants)),
                 Kind::Array(ty) => {
                     if let Kind::Enum(variants) = ty.kind() {
-                        Some((syn::parse_quote!(EnumArray), variants))
+                        Some((true, variants))
                     } else {
                         None
                     }
                 }
                 _ => None,
             };
-            if let Some((marker_ident, variants)) = enum_data {
-                let n = variants.len();
-                let mut variant_traits = Vec::with_capacity(n);
+            if let Some((is_array, variants)) = enum_data {
+                let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
                     #[cfg(not(nightly_column_names))]
                     let name = {
@@ -301,18 +306,17 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     };
                     #[cfg(nightly_column_names)]
                     let name = variant;
-                    variant_traits.push(quote! {
-                        impl ::sqlm_postgres::HasVariant<#n, #name> for Cols {}
-                    });
+                    enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
+                let enum_struct = if is_array {
+                    quote! { Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>> }
+                } else {
+                    quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> }
+                };
                 return quote! {
                     {
-                        pub struct Cols;
-
-                        #(#variant_traits)*
-
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::#marker_ident<Cols>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#enum_struct>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,
@@ -358,11 +362,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
             #[cfg(nightly_column_names)]
             let name = column.name();
 
+            // TODO: array
             let enum_data = match ty.kind() {
-                Kind::Enum(variants) => Some((quote!(T), variants)),
+                Kind::Enum(variants) => Some((false, variants)),
                 Kind::Array(ty) => {
                     if let Kind::Enum(variants) = ty.kind() {
-                        Some((quote!(Vec<T>), variants))
+                        Some((true, variants))
                     } else {
                         None
                     }
@@ -370,12 +375,8 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 _ => None,
             };
 
-            if let Some((ty, variants)) = enum_data {
-                columns.push(quote! {
-                    impl<T> ::sqlm_postgres::HasColumn<#ty, #name> for Cols where
-                });
-
-                let n = variants.len();
+            if let Some((is_array, variants)) = enum_data {
+                let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
                     #[cfg(not(nightly_column_names))]
                     let name = {
@@ -387,24 +388,22 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     };
                     #[cfg(nightly_column_names)]
                     let name = variant;
-                    columns.push(quote! {
-                        T: ::sqlm_postgres::HasVariant<#n, #name>,
-                    });
+                    enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
-                columns.push(quote! {
-                    {}
+                if is_array {
+                    columns.push(quote! {
+                        impl ::sqlm_postgres::HasColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name> for Cols {}
+                    });
+                } else {
+                    columns.push(quote! {
+                    impl ::sqlm_postgres::HasColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name> for Cols {}
                 });
+                }
             } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
                 columns.push(quote! {
                     impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
                 });
-
-                if col_count == 1 {
-                    columns.push(quote! {
-                        impl ::sqlm_postgres::HasScalar<#ty> for Cols {}
-                    });
-                }
             } else {
                 return syn::Error::new(
                     input.query.span(),

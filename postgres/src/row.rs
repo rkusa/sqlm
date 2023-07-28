@@ -20,21 +20,11 @@ pub trait SqlType: FromSqlOwned + ToSql {
 pub trait HasColumn<Type, const NAME: usize> {}
 #[cfg(nightly_column_names)]
 pub trait HasColumn<Type, const NAME: &'static str> {}
-
-#[cfg(not(nightly_column_names))]
-pub trait HasVariant<const N: usize, const NAME: usize> {}
-#[cfg(nightly_column_names)]
-pub trait HasVariant<const N: usize, const NAME: &'static str> {}
-
 #[derive(Default)]
 pub struct Struct<T>(PhantomData<T>);
 
 #[derive(Default)]
 pub struct Literal<T>(PhantomData<T>);
-
-#[cfg(feature = "comptime")]
-#[derive(Default)]
-pub struct EnumArray<T>(PhantomData<T>);
 
 impl<T> SqlType for Option<T>
 where
@@ -69,15 +59,4 @@ impl<Cols> From<tokio_postgres::Row> for Row<Cols> {
             marker: PhantomData,
         }
     }
-}
-
-#[cfg(not(nightly_column_names))]
-impl<T, const N: usize, const NAME: usize> HasVariant<N, NAME> for Option<T> where
-    T: HasVariant<N, NAME>
-{
-}
-#[cfg(nightly_column_names)]
-impl<T, const N: usize, const NAME: &'static str> HasVariant<N, NAME> for Option<T> where
-    T: HasVariant<N, NAME>
-{
 }

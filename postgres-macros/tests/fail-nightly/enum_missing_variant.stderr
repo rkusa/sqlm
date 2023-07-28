@@ -1,17 +1,14 @@
-error[E0277]: the trait bound `Role: HasVariant<2, "user">` is not satisfied
+error[E0277]: the trait bound `Cols: HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">,)>, "role">` is not satisfied
   --> tests/fail-nightly/enum_missing_variant.rs:20:59
    |
 20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `HasVariant<2, "user">` is not implemented for `Role`
+   |                                                          -^^^^^ the trait `HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">,)>, "role">` is not implemented for `Cols`
    |                                                          |
    |                                                          help: remove the `.await`
    |
-   = help: the trait `HasVariant<1, "user">` is implemented for `Role`
-note: required for `Cols` to implement `HasColumn<Role, "role">`
-  --> tests/fail-nightly/enum_missing_variant.rs:20:24
-   |
-20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: the following other types implement trait `HasColumn<Type, NAME>`:
+             <Cols as HasColumn<i64, "id">>
+             <Cols as HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>, "role">>
 note: required for `User` to implement `FromRow<Struct<Cols>>`
   --> tests/fail-nightly/enum_missing_variant.rs:12:32
    |
@@ -21,29 +18,4 @@ note: required for `User` to implement `FromRow<Struct<Cols>>`
    |        ^^^^
    = note: required for `Vec<User>` to implement `Query<Struct<Cols>>`
    = note: required for `Sql<'_, Struct<Cols>, Vec<User>>` to implement `IntoFuture`
-   = note: this error originates in the macro `sql` which comes from the expansion of the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: the trait bound `Role: HasVariant<2, "admin">` is not satisfied
-  --> tests/fail-nightly/enum_missing_variant.rs:20:59
-   |
-20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `HasVariant<2, "admin">` is not implemented for `Role`
-   |                                                          |
-   |                                                          help: remove the `.await`
-   |
-   = help: the trait `HasVariant<1, "user">` is implemented for `Role`
-note: required for `Cols` to implement `HasColumn<Role, "role">`
-  --> tests/fail-nightly/enum_missing_variant.rs:20:24
-   |
-20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required for `User` to implement `FromRow<Struct<Cols>>`
-  --> tests/fail-nightly/enum_missing_variant.rs:12:32
-   |
-12 | #[derive(Debug, PartialEq, Eq, FromRow)]
-   |                                ^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
-13 | struct User {
-   |        ^^^^
-   = note: required for `Vec<User>` to implement `Query<Struct<Cols>>`
-   = note: required for `Sql<'_, Struct<Cols>, Vec<User>>` to implement `IntoFuture`
-   = note: this error originates in the macro `sql` which comes from the expansion of the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
