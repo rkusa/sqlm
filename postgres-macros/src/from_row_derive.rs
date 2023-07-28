@@ -51,14 +51,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             name.hash(&mut hasher);
             hasher.finish() as usize
         };
-        {
-            let ty = if opts.from_str {
-                parse_quote!(String)
-            } else {
-                ty.clone()
-            };
-            where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::HasColumn<#ty, #name>));
-        }
+        where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::HasColumn<<#ty as ::sqlm_postgres::SqlType>::Type, #name>));
 
         // Forward only certain args
         let attrs = f
@@ -68,24 +61,10 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             .collect::<Vec<_>>();
 
         let name = ident.to_string();
-        let get_value = if opts.from_str {
-            quote! {
-                {
-                    let s: Option<String> = row.try_get(#name)?;
-                    s
-                        .map(|s| ::std::str::FromStr::from_str(&s)).transpose()
-                        .map_err(|err| ::sqlm_postgres::Error::FromStr(Box::new(err)))?
-                }
-            }
-        } else {
-            quote! {
-                row.try_get(#name)?
-            }
-        };
         match kind {
             Kind::Option => field_assignments.push(quote! {
                 #(#attrs)*
-                #ident: #get_value,
+                #ident: row.try_get(#name)?,
             }),
             Kind::Other => {
                 let default = if let Some(default) = opts.default {
@@ -96,7 +75,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                 field_assignments.push(quote! {
                     #(#attrs)*
                     #ident: {
-                        let v: Option<#ty> = #get_value;
+                        let v: Option<#ty> = row.try_get(#name)?;
                         #default
                     },
                 })
@@ -113,7 +92,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             where
                 #where_predicates
             {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Struct<Cols>>) -> Result<Self, ::sqlm_postgres::Error> {
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Struct<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                     Ok(Self {
                         #(#field_assignments)*
                     })
@@ -138,7 +117,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        ::sqlm_postgres::FromRow::<::sqlm_postgres::Struct<Cols>>::from_row(row.into())
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Struct<Cols>>::from_row(row.into())?)
                     })
                 }
             }
@@ -150,7 +129,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         Ok(quote! {
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::FromRow<#ident> for #ident #ty_generics #where_clause {
-                fn from_row(row: ::sqlm_postgres::Row<#ident>) -> Result<Self, ::sqlm_postgres::Error> {
+                fn from_row(row: ::sqlm_postgres::Row<#ident>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                     Ok(Self {
                         #(#field_assignments)*
                     })
@@ -208,7 +187,6 @@ pub(crate) fn extract_inner_type(ty: &Type) -> syn::Result<(&Type, Kind)> {
 #[derive(Default)]
 struct FieldOptions {
     default: Option<Expr>,
-    from_str: bool,
 }
 
 fn extract_field_options(attrs: &[Attribute]) -> Result<FieldOptions, Error> {
@@ -220,10 +198,8 @@ fn extract_field_options(attrs: &[Attribute]) -> Result<FieldOptions, Error> {
         }
 
         for opt in attr.parse_args_with(Punctuated::<OptionExpr, token::Comma>::parse_terminated)? {
-            if opt.key.is_ident("from_str") && opt.value.is_none() {
-                opts.from_str = true;
-            } else if opt.key.is_ident("default") && opt.value.is_some() {
-                opts.default = opt.value;
+            if opt.key.is_ident("default") {
+                opts.default = Some(opt.value);
             } else {
                 return Err(Error::new_spanned(opt.key, "unknown option"));
             }
@@ -236,17 +212,15 @@ fn extract_field_options(attrs: &[Attribute]) -> Result<FieldOptions, Error> {
 #[derive(Debug, Hash)]
 struct OptionExpr {
     key: Path,
-    value: Option<Expr>,
+    value: Expr,
 }
 
 impl Parse for OptionExpr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let key = input.parse()?;
-        let value = if Option::<token::Eq>::parse(input)?.is_some() {
-            Some(input.parse()?)
-        } else {
-            None
-        };
+
+        token::Eq::parse(input)?;
+        let value = input.parse()?;
         Ok(OptionExpr { key, value })
     }
 }

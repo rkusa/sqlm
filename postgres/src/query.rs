@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::{connect, Error, FromRow, Literal, Sql, Struct};
+use crate::{connect, Error, FromRow, Literal, Sql, SqlType, Struct};
 
 pub trait Query<Cols>: Sized {
     fn query<'a>(
@@ -254,6 +254,10 @@ where
 #[cfg(feature = "comptime")]
 macro_rules! impl_query_scalar {
     ($ty:path) => {
+        impl SqlType for $ty {
+            type Type = Self;
+        }
+
         impl Query<crate::Literal<$ty>> for $ty {
             fn query<'a>(
                 sql: &'a Sql<'a, crate::Literal<$ty>, Self>,
@@ -277,6 +281,10 @@ macro_rules! impl_query_scalar {
 #[cfg(not(feature = "comptime"))]
 macro_rules! impl_query_scalar {
     ($ty:path) => {
+        impl SqlType for $ty {
+            type Type = Self;
+        }
+
         impl Query<crate::Literal<$ty>> for $ty {
             fn query<'a>(
                 sql: &'a Sql<'a, crate::Literal<$ty>, Self>,

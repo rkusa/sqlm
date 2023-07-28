@@ -70,12 +70,17 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             )*
 
             #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
+                type Type = Self;
+            }
+
+            #[automatically_derived]
             impl #impl_generics_with_cols ::sqlm_postgres::FromRow<::sqlm_postgres::Literal<Cols>> for #ident #ty_generics
             where
                 #where_predicates
             {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::Error> {
-                    Ok(row.try_get(0)?)
+                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                    row.try_get(0)
                 }
             }
 
@@ -97,7 +102,7 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        ::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())
+                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<Cols>>::from_row(row.into())?)
                     })
                 }
             }
@@ -110,6 +115,11 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             #(
                 #has_variant_impls
             )*
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
+                type Type = Self;
+            }
 
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Literal<#ident>> for #ident #ty_generics #where_clause {
