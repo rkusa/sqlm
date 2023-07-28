@@ -7,6 +7,8 @@ use syn::{
     PathArguments, Type,
 };
 
+use crate::const_name;
+
 pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     let DeriveInput {
         attrs: _,
@@ -43,14 +45,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         let (ty, kind) = extract_inner_type(&f.ty)?;
 
         let name = ident.to_string();
-        #[cfg(not(nightly_column_names))]
-        let name = {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::default();
-            name.hash(&mut hasher);
-            hasher.finish() as usize
-        };
+        let name = const_name(&name);
         where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::types::HasColumn<<#ty as ::sqlm_postgres::SqlType>::Type, #name>));
 
         // Forward only certain args

@@ -155,9 +155,10 @@ pub fn sql(item: TokenStream) -> TokenStream {
     {
         use std::str::FromStr;
 
-        use postgres::types::Kind;
         use postgres::Config;
         use syn::{parse_quote, Type};
+
+        use crate::const_name;
 
         let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
             return syn::Error::new(
@@ -203,30 +204,10 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
         let mut typed_parameters = Vec::with_capacity(parameters.len());
         for (ty, param) in stmt.params().iter().zip(parameters) {
-            let enum_data = match ty.kind() {
-                Kind::Enum(variants) => Some((false, variants)),
-                Kind::Array(ty) => {
-                    if let Kind::Enum(variants) = ty.kind() {
-                        Some((true, variants))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-            if let Some((is_array, variants)) = enum_data {
+            if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    #[cfg(not(nightly_column_names))]
-                    let name = {
-                        use std::collections::hash_map::DefaultHasher;
-                        use std::hash::{Hash, Hasher};
-                        let mut hasher = DefaultHasher::default();
-                        variant.hash(&mut hasher);
-                        hasher.finish() as usize
-                    };
-                    #[cfg(nightly_column_names)]
-                    let name = variant;
+                    let name = const_name(variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -285,30 +266,10 @@ pub fn sql(item: TokenStream) -> TokenStream {
         if col_count == 1 {
             // Consider the result to be a literal
             let ty = stmt.columns()[0].type_();
-            let enum_data: Option<(bool, &[String])> = match ty.kind() {
-                Kind::Enum(variants) => Some((false, variants)),
-                Kind::Array(ty) => {
-                    if let Kind::Enum(variants) = ty.kind() {
-                        Some((true, variants))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-            if let Some((is_array, variants)) = enum_data {
+            if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    #[cfg(not(nightly_column_names))]
-                    let name = {
-                        use std::collections::hash_map::DefaultHasher;
-                        use std::hash::{Hash, Hasher};
-                        let mut hasher = DefaultHasher::default();
-                        variant.hash(&mut hasher);
-                        hasher.finish() as usize
-                    };
-                    #[cfg(nightly_column_names)]
-                    let name = variant;
+                    let name = const_name(variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -353,44 +314,11 @@ pub fn sql(item: TokenStream) -> TokenStream {
         let mut columns = Vec::with_capacity(stmt.columns().len());
         for column in stmt.columns() {
             let ty = column.type_();
-
-            #[cfg(not(nightly_column_names))]
-            let name = {
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
-                let mut hasher = DefaultHasher::default();
-                column.name().hash(&mut hasher);
-                hasher.finish() as usize
-            };
-            #[cfg(nightly_column_names)]
-            let name = column.name();
-
-            // TODO: array
-            let enum_data = match ty.kind() {
-                Kind::Enum(variants) => Some((false, variants)),
-                Kind::Array(ty) => {
-                    if let Kind::Enum(variants) = ty.kind() {
-                        Some((true, variants))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-
-            if let Some((is_array, variants)) = enum_data {
+            let name = const_name(column.name());
+            if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    #[cfg(not(nightly_column_names))]
-                    let name = {
-                        use std::collections::hash_map::DefaultHasher;
-                        use std::hash::{Hash, Hasher};
-                        let mut hasher = DefaultHasher::default();
-                        variant.hash(&mut hasher);
-                        hasher.finish() as usize
-                    };
-                    #[cfg(nightly_column_names)]
-                    let name = variant;
+                    let name = const_name(variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -490,6 +418,22 @@ fn postgres_to_rust_type(
         }
 
         // Unsupported
+        _ => None,
+    }
+}
+
+#[cfg(feature = "comptime")]
+fn enum_type(ty: &postgres::types::Type) -> Option<(bool, &[String])> {
+    use postgres::types::Kind;
+    match ty.kind() {
+        Kind::Enum(variants) => Some((false, variants)),
+        Kind::Array(ty) => {
+            if let Kind::Enum(variants) = ty.kind() {
+                Some((true, variants))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

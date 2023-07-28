@@ -6,6 +6,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path, Type};
 
+use crate::const_name;
 use crate::rename::RenameAll;
 
 pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
@@ -33,22 +34,15 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
     let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
     for v in variants {
         let vopts = extract_variant_options(&v.attrs)?;
-        let mut name = v.ident.to_string();
-
-        if let Some(rename) = vopts.rename {
-            name = rename;
+        let name = v.ident.to_string();
+        let name = if let Some(rename) = vopts.rename {
+            rename
         } else if let Some(rename_all) = &opts.rename_all {
-            name = rename_all.apply(&name);
-        }
-
-        #[cfg(not(nightly_column_names))]
-        let name = {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::default();
-            name.hash(&mut hasher);
-            hasher.finish() as usize
+            rename_all.apply(&name)
+        } else {
+            name
         };
+        let name = const_name(&name);
 
         enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
     }

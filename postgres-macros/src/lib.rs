@@ -32,3 +32,17 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
 pub fn sql(item: TokenStream) -> TokenStream {
     sql::sql(item)
 }
+
+#[cfg(not(nightly_column_names))]
+fn const_name(name: &str) -> usize {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::default();
+    name.hash(&mut hasher);
+    hasher.finish() as usize
+}
+
+#[cfg(nightly_column_names)]
+fn const_name(name: &str) -> &str {
+    name
+}
