@@ -4,7 +4,7 @@ use std::pin::Pin;
 use tokio_postgres::types::{FromSqlOwned, ToSql};
 
 use crate::types::{Literal, SqlType, Struct};
-use crate::{connect, Error, FromRow, Sql};
+use crate::{Error, FromRow, Sql};
 
 pub trait Query<Cols>: Sized {
     fn query<'a>(
@@ -33,14 +33,7 @@ where
         sql: &'a Sql<'a, Struct<Cols>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_one(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_one(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_one().await?;
             Ok(FromRow::<Struct<Cols>>::from_row(row.into())?)
         })
     }
@@ -55,14 +48,7 @@ where
         sql: &'a Sql<'a, Struct<Cols>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_opt(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_opt(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_opt().await?;
             match row {
                 Some(row) => Ok(Some(FromRow::<Struct<Cols>>::from_row(row.into())?)),
                 None => Ok(None),
@@ -80,14 +66,7 @@ where
         sql: &'a Sql<'a, Struct<Cols>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let rows = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query(&stmt, sql.parameters).await?
-            };
+            let rows = sql.query().await?;
             rows.into_iter()
                 .map(|row| FromRow::<Struct<Cols>>::from_row(row.into()).map_err(Error::from))
                 .collect()
@@ -103,14 +82,7 @@ where
         sql: &'a Sql<'a, Cols, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.execute(&stmt, sql.parameters).await?;
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.execute(&stmt, sql.parameters).await?;
-            }
+            sql.execute().await?;
             Ok(())
         })
     }

@@ -89,6 +89,51 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
         self.transaction = Some(tx);
         self
     }
+
+    async fn query_one(&self) -> Result<tokio_postgres::Row, Error> {
+        if let Some(tx) = self.transaction {
+            let stmt = tx.prepare_cached(self.query).await?;
+            Ok(tx.query_one(&stmt, self.parameters).await?)
+        } else {
+            let conn = connect().await?;
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query_one(&stmt, self.parameters).await?)
+        }
+    }
+
+    async fn query_opt(&self) -> Result<Option<tokio_postgres::Row>, Error> {
+        if let Some(tx) = self.transaction {
+            let stmt = tx.prepare_cached(self.query).await?;
+            Ok(tx.query_opt(&stmt, self.parameters).await?)
+        } else {
+            let conn = connect().await?;
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query_opt(&stmt, self.parameters).await?)
+        }
+    }
+
+    async fn query(&self) -> Result<Vec<tokio_postgres::Row>, Error> {
+        if let Some(tx) = self.transaction {
+            let stmt = tx.prepare_cached(self.query).await?;
+            Ok(tx.query(&stmt, self.parameters).await?)
+        } else {
+            let conn = connect().await?;
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query(&stmt, self.parameters).await?)
+        }
+    }
+
+    async fn execute(&self) -> Result<(), Error> {
+        if let Some(tx) = self.transaction {
+            let stmt = tx.prepare_cached(self.query).await?;
+            tx.execute(&stmt, self.parameters).await?;
+        } else {
+            let conn = connect().await?;
+            let stmt = conn.prepare_cached(self.query).await?;
+            conn.execute(&stmt, self.parameters).await?;
+        }
+        Ok(())
+    }
 }
 
 struct NoServerCertVerify;

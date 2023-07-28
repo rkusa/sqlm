@@ -4,7 +4,7 @@ use std::pin::Pin;
 
 use tokio_postgres::types::{FromSqlOwned, ToSql};
 
-use crate::{connect, Error, Sql};
+use crate::{Error, Sql};
 
 pub trait SqlType {
     type Type;
@@ -17,14 +17,7 @@ pub trait SqlType {
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_one(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_one(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_one().await?;
             Ok(row.try_get(0)?)
         })
     }
@@ -60,14 +53,7 @@ where
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_opt(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_opt(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_opt().await?;
             match row {
                 Some(row) => Ok(row.try_get::<'_, _, Option<T>>(0)?),
                 None => Ok(None),
@@ -90,19 +76,13 @@ where
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_one(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_one(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_one().await?;
             Ok(row.try_get(0)?)
         })
     }
 }
 
+// TODO: add test for that
 impl SqlType for Vec<u8> {
     type Type = Vec<u8>;
 
@@ -114,14 +94,7 @@ impl SqlType for Vec<u8> {
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = if let Some(tx) = sql.transaction {
-                let stmt = tx.prepare_cached(sql.query).await?;
-                tx.query_one(&stmt, sql.parameters).await?
-            } else {
-                let conn = connect().await?;
-                let stmt = conn.prepare_cached(sql.query).await?;
-                conn.query_one(&stmt, sql.parameters).await?
-            };
+            let row = sql.query_one().await?;
             Ok(row.try_get(0)?)
         })
     }
