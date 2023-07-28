@@ -73,3 +73,9 @@ impl<'a, T> From<Option<Vec<T>>> for Valid<'a, [T], Vec<T>> {
         Self(PhantomData)
     }
 }
+
+impl<'a> From<i32> for Valid<'a, i64> {
+    fn from(_: i32) -> Self {
+        Self(PhantomData)
+    }
+}

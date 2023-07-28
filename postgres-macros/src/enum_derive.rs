@@ -61,32 +61,6 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
                 type Type = #enum_struct;
             }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::FromRow<::sqlm_postgres::Literal<#enum_struct>> for #ident #ty_generics #where_clause {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::Literal<#enum_struct>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                    row.try_get(0)
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Literal<#enum_struct>> for #ident #ty_generics #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<#enum_struct>, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let row = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query_one(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query_one(&stmt, sql.parameters).await?
-                        };
-                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::Literal<#enum_struct>>::from_row(row.into())?)
-                    })
-                }
-            }
         })
     }
     #[cfg(not(feature = "comptime"))]
@@ -95,25 +69,6 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
                 type Type = Self;
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::Literal<#ident>> for #ident #ty_generics #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::Literal<#ident>, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let row = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query_one(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query_one(&stmt, sql.parameters).await?
-                        };
-                        Ok(row.try_get(0)?)
-                    })
-                }
             }
         })
     }

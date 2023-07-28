@@ -24,12 +24,13 @@ pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
-pub use row::{FromRow, HasColumn, Literal, Row, SqlType, Struct};
+pub use row::{FromRow, Row};
 pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::NoTls;
+pub use types::SqlType;
 
 static POOL: OnceCell<Pool> = OnceCell::new();
 

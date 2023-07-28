@@ -1,10 +1,9 @@
-error[E0277]: the trait bound `String: Query<Literal<Vec<String>>>` is not satisfied
+error[E0271]: type mismatch resolving `<String as SqlType>::Type == Vec<String>`
  --> tests/fail/literal_array_to_literal.rs:6:10
   |
 6 |         .await
-  |         -^^^^^ the trait `Query<Literal<Vec<String>>>` is not implemented for `String`
-  |         |
-  |         help: remove the `.await`
+  |          ^^^^^ expected `String`, found `Vec<String>`
   |
-  = help: the trait `Query<Literal<String>>` is implemented for `String`
+  = note: expected struct `String`
+             found struct `Vec<String>`
   = note: required for `Sql<'_, Literal<Vec<String>>, String>` to implement `IntoFuture`

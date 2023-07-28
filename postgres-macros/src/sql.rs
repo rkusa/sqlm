@@ -268,16 +268,19 @@ pub fn sql(item: TokenStream) -> TokenStream {
             // `Option::from` is used to allow parameters to be an Option
             typed_parameters.push(quote! {
                 {
-                    if false {
-                        let _: ::sqlm_postgres::internal::Valid<#ty_borrowed, #ty_owned> = ::sqlm_postgres::internal::Valid::from(#param);
-                        unreachable!();
+                    {
+                        const fn assert_type<T, S>(_: &T)
+                        where
+                            T: ::sqlm_postgres::SqlType<Type = S>,
+                            for<'a> ::sqlm_postgres::internal::Valid<'a, #ty_borrowed, #ty_owned>: From<S>
+                        {}
+                        assert_type(&(#param));
                     }
                     &(#param)
                 }
             });
         }
 
-        // TODO: enmum literal support
         let col_count = stmt.columns().len();
         if col_count == 1 {
             // Consider the result to be a literal
@@ -316,7 +319,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 };
                 return quote! {
                     {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#enum_struct>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Literal<#enum_struct>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,
@@ -328,7 +331,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
                 return quote! {
                     {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Literal<#ty>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Literal<#ty>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,
@@ -393,16 +396,16 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
                 if is_array {
                     columns.push(quote! {
-                        impl ::sqlm_postgres::HasColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name> for Cols {}
+                        impl ::sqlm_postgres::types::HasColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name> for Cols {}
                     });
                 } else {
                     columns.push(quote! {
-                    impl ::sqlm_postgres::HasColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name> for Cols {}
+                    impl ::sqlm_postgres::types::HasColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name> for Cols {}
                 });
                 }
             } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
                 columns.push(quote! {
-                    impl ::sqlm_postgres::HasColumn<#ty, #name> for Cols {}
+                    impl ::sqlm_postgres::types::HasColumn<#ty, #name> for Cols {}
                 });
             } else {
                 return syn::Error::new(
@@ -420,7 +423,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
                 #(#columns)*
 
-                ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::Struct<Cols>, _> {
+                ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Struct<Cols>, _> {
                     query: #result,
                     parameters: &[#(&(#typed_parameters),)*],
                     transaction: None,
