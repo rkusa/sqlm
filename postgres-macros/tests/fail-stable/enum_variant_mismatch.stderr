@@ -1,11 +1,10 @@
-error[E0277]: the trait bound `User: FromRow<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not satisfied
+error[E0277]: the trait bound `Vec<User>: Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not satisfied
   --> tests/fail-stable/enum_variant_mismatch.rs:23:59
    |
 23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `FromRow<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `User`
+   |                                                          -^^^^^ the trait `Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`
    |                                                          |
    |                                                          help: remove the `.await`
    |
-   = help: the trait `FromRow<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<16036746858103170191>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is implemented for `User`
-   = note: required for `Vec<User>` to implement `Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>`
+   = help: the trait `Query<Struct<Cols>>` is implemented for `Vec<T>`
    = note: required for `Sql<'_, Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<Enum<...>, 18137070463969723500>)>, ...>` to implement `IntoFuture`

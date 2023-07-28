@@ -80,71 +80,20 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     }
 
     #[cfg(feature = "comptime")]
-    {
-        let _ = impl_generics;
-        let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
-        Ok(quote! {
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::FromRow<#type_struct> for #ident #ty_generics #where_clause {
-                fn from_row(row: ::sqlm_postgres::Row<#type_struct>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                    Ok(Self {
-                        #(#field_assignments)*
-                    })
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<#type_struct> for #ident #ty_generics #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, #type_struct, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let row = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query_one(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query_one(&stmt, sql.parameters).await?
-                        };
-                        Ok(::sqlm_postgres::FromRow::<#type_struct>::from_row(row.into())?)
-                    })
-                }
-            }
-        })
-    }
+    let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
     #[cfg(not(feature = "comptime"))]
-    {
-        Ok(quote! {
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::FromRow<#ident> for #ident #ty_generics #where_clause {
-                fn from_row(row: ::sqlm_postgres::Row<#ident>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
-                    Ok(Self {
-                        #(#field_assignments)*
-                    })
-                }
-            }
+    let type_struct = quote! { ::sqlm_postgres::types::Struct<#ident> };
 
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::Query<::sqlm_postgres::types::Struct<#ident>> for #ident #ty_generics #where_clause {
-                fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::types::Struct<#ident>, Self>,
-                ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
-                    Box::pin(async move {
-                        let row = if let Some(tx) = sql.transaction {
-                            let stmt = tx.prepare_cached(sql.query).await?;
-                            tx.query_one(&stmt, sql.parameters).await?
-                        } else {
-                            let conn = ::sqlm_postgres::connect().await?;
-                            let stmt = conn.prepare_cached(sql.query).await?;
-                            conn.query_one(&stmt, sql.parameters).await?
-                        };
-                        Ok(::sqlm_postgres::FromRow::<#ident>::from_row(row.into())?)
-                    })
-                }
+    Ok(quote! {
+        #[automatically_derived]
+        impl #impl_generics ::sqlm_postgres::FromRow<#type_struct> for #ident #ty_generics #where_clause {
+            fn from_row(row: ::sqlm_postgres::Row<#type_struct>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+                Ok(Self {
+                    #(#field_assignments)*
+                })
             }
-        })
-    }
+        }
+    })
 }
 
 pub(crate) enum Kind {
