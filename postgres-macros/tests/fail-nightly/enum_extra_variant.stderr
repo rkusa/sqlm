@@ -1,21 +1,11 @@
-error[E0277]: the trait bound `Cols: HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">, EnumVariant<"moderator">)>, "role">` is not satisfied
+error[E0277]: the trait bound `User: FromRow<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not satisfied
   --> tests/fail-nightly/enum_extra_variant.rs:26:59
    |
 26 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">, EnumVariant<"moderator">)>, "role">` is not implemented for `Cols`
+   |                                                          -^^^^^ the trait `FromRow<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not implemented for `User`
    |                                                          |
    |                                                          help: remove the `.await`
    |
-   = help: the following other types implement trait `HasColumn<Type, NAME>`:
-             <Cols as HasColumn<i64, "id">>
-             <Cols as HasColumn<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>, "role">>
-note: required for `User` to implement `FromRow<Struct<Cols>>`
-  --> tests/fail-nightly/enum_extra_variant.rs:18:32
-   |
-18 | #[derive(Debug, PartialEq, Eq, FromRow)]
-   |                                ^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
-19 | struct User {
-   |        ^^^^
-   = note: required for `Vec<User>` to implement `Query<Struct<Cols>>`
-   = note: required for `Sql<'_, Struct<Cols>, Vec<User>>` to implement `IntoFuture`
-   = note: this error originates in the derive macro `FromRow` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = help: the trait `FromRow<Struct<(StructColumn<<i64 as SqlType>::Type, "id">, StructColumn<<Role as SqlType>::Type, "role">)>>` is implemented for `User`
+   = note: required for `Vec<User>` to implement `Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>`
+   = note: required for `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<Enum<(EnumVariant<"admin">, ...)>, "role">)>, ...>` to implement `IntoFuture`

@@ -1,9 +1,9 @@
-error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>`
+error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>`
   --> tests/fail-nightly/enum_array_to_enum_literal.rs:17:10
    |
 17 |         .await
-   |          ^^^^^ expected `Enum<(EnumVariant<"user">, ...)>`, found `Vec<Enum<(..., ...)>>`
+   |          ^^^^^ expected `Enum<(EnumVariant<"admin">, ...)>`, found `Vec<Enum<(..., ...)>>`
    |
    = note: expected struct `sqlm_postgres::types::Enum<_>`
               found struct `Vec<sqlm_postgres::types::Enum<_>>`
-   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"user">, EnumVariant<"admin">)>>>, Role>` to implement `IntoFuture`
+   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, Role>` to implement `IntoFuture`

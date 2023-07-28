@@ -1,4 +1,4 @@
-error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>`
+error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>`
   --> tests/fail-stable/enum_array_to_enum_literal.rs:17:10
    |
 17 |         .await
@@ -6,4 +6,4 @@ error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(Enum
    |
    = note: expected struct `sqlm_postgres::types::Enum<_>`
               found struct `Vec<sqlm_postgres::types::Enum<_>>`
-   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>, EnumVariant<5755620910692865178>)>>>, Role>` to implement `IntoFuture`
+   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, Role>` to implement `IntoFuture`

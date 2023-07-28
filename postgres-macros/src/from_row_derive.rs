@@ -29,24 +29,25 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         ));
     };
 
-    let mut new_generics = generics.clone();
-    new_generics.params.push(parse_quote!(Cols));
-    let (impl_generics_with_cols, _, _) = new_generics.split_for_impl();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let mut where_predicates = where_clause
-        .map(|w| w.predicates.clone())
-        .unwrap_or_default();
 
+    let mut struct_columns: Vec<Type> = Vec::with_capacity(fields.named.len());
     let mut field_assignments = Vec::with_capacity(fields.named.len());
 
-    for f in fields.named.iter() {
+    let mut fields = fields
+        .named
+        .into_iter()
+        .map(|f| (f.ident.as_ref().unwrap().to_string(), f))
+        .collect::<Vec<_>>();
+    fields.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    for (name, f) in fields {
         let opts = extract_field_options(&f.attrs)?;
         let ident = f.ident.as_ref().unwrap();
         let (ty, kind) = extract_inner_type(&f.ty)?;
 
-        let name = ident.to_string();
         let name = const_name(&name);
-        where_predicates.push(parse_quote!(Cols: ::sqlm_postgres::types::HasColumn<<#ty as ::sqlm_postgres::SqlType>::Type, #name>));
+        struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<<#ty as ::sqlm_postgres::SqlType>::Type, #name>));
 
         // Forward only certain args
         let attrs = f
@@ -81,13 +82,11 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     #[cfg(feature = "comptime")]
     {
         let _ = impl_generics;
+        let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::FromRow<::sqlm_postgres::types::Struct<Cols>> for #ident #ty_generics
-            where
-                #where_predicates
-            {
-                fn from_row(row: ::sqlm_postgres::Row<::sqlm_postgres::types::Struct<Cols>>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+            impl #impl_generics ::sqlm_postgres::FromRow<#type_struct> for #ident #ty_generics #where_clause {
+                fn from_row(row: ::sqlm_postgres::Row<#type_struct>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                     Ok(Self {
                         #(#field_assignments)*
                     })
@@ -95,13 +94,9 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
             }
 
             #[automatically_derived]
-            impl #impl_generics_with_cols ::sqlm_postgres::Query<::sqlm_postgres::types::Struct<Cols>> for #ident #ty_generics
-            where
-                Cols: Send + Sync,
-                #where_predicates
-            {
+            impl #impl_generics ::sqlm_postgres::Query<#type_struct> for #ident #ty_generics #where_clause {
                 fn query<'a>(
-                    sql: &'a ::sqlm_postgres::Sql<'a, ::sqlm_postgres::types::Struct<Cols>, Self>,
+                    sql: &'a ::sqlm_postgres::Sql<'a, #type_struct, Self>,
                 ) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<Self, ::sqlm_postgres::Error>> + Send + 'a>> {
                     Box::pin(async move {
                         let row = if let Some(tx) = sql.transaction {
@@ -112,7 +107,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
                             let stmt = conn.prepare_cached(sql.query).await?;
                             conn.query_one(&stmt, sql.parameters).await?
                         };
-                        Ok(::sqlm_postgres::FromRow::<::sqlm_postgres::types::Struct<Cols>>::from_row(row.into())?)
+                        Ok(::sqlm_postgres::FromRow::<#type_struct>::from_row(row.into())?)
                     })
                 }
             }
@@ -120,7 +115,6 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
     }
     #[cfg(not(feature = "comptime"))]
     {
-        let _ = impl_generics_with_cols;
         Ok(quote! {
             #[automatically_derived]
             impl #impl_generics ::sqlm_postgres::FromRow<#ident> for #ident #ty_generics #where_clause {

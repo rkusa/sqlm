@@ -311,8 +311,11 @@ pub fn sql(item: TokenStream) -> TokenStream {
             }
         }
 
-        let mut columns = Vec::with_capacity(stmt.columns().len());
-        for column in stmt.columns() {
+        let mut columns = stmt.columns().iter().collect::<Vec<_>>();
+        columns.sort_by_key(|c| c.name());
+
+        let mut struct_columns: Vec<Type> = Vec::with_capacity(columns.len());
+        for column in columns {
             let ty = column.type_();
             let name = const_name(column.name());
             if let Some((is_array, variants)) = enum_type(ty) {
@@ -323,18 +326,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 }
 
                 if is_array {
-                    columns.push(quote! {
-                        impl ::sqlm_postgres::types::HasColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name> for Cols {}
-                    });
+                    struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name>));
                 } else {
-                    columns.push(quote! {
-                    impl ::sqlm_postgres::types::HasColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name> for Cols {}
-                });
+                    struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name>));
                 }
             } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
-                columns.push(quote! {
-                    impl ::sqlm_postgres::types::HasColumn<#ty, #name> for Cols {}
-                });
+                struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#ty, #name>));
             } else {
                 return syn::Error::new(
                     input.query.span(),
@@ -345,13 +342,10 @@ pub fn sql(item: TokenStream) -> TokenStream {
             };
         }
 
+        let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
         quote! {
             {
-                pub struct Cols;
-
-                #(#columns)*
-
-                ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Struct<Cols>, _> {
+                ::sqlm_postgres::Sql::<'_, #type_struct, _> {
                     query: #result,
                     parameters: &[#(&(#typed_parameters),)*],
                     transaction: None,

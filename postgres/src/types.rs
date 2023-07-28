@@ -31,14 +31,12 @@ pub trait SqlType {
 }
 
 #[cfg(not(nightly_column_names))]
-pub trait HasColumn<Type, const NAME: usize> {}
+pub struct StructColumn<T, const NAME: usize>(PhantomData<T>);
 #[cfg(nightly_column_names)]
-pub trait HasColumn<Type, const NAME: &'static str> {}
+pub struct StructColumn<T, const NAME: &'static str>(PhantomData<T>);
 
-#[derive(Default)]
 pub struct Struct<T>(PhantomData<T>);
 
-#[derive(Default)]
 pub struct Literal<T>(PhantomData<T>);
 
 pub struct Enum<T>(PhantomData<T>);

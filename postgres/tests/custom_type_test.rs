@@ -7,6 +7,7 @@ struct Id(i64);
 #[derive(Debug, PartialEq, Eq, FromRow)]
 struct User {
     id: Id,
+    name: String,
 }
 
 impl SqlType for Id {
@@ -76,8 +77,16 @@ async fn test_vec() {
 
 #[tokio::test]
 async fn test_property() {
-    let users: User = sql!("SELECT id, '' FROM users WHERE id = 1").await.unwrap();
-    assert_eq!(users, User { id: Id(1) });
+    let users: User = sql!("SELECT id, name FROM users WHERE id = 1")
+        .await
+        .unwrap();
+    assert_eq!(
+        users,
+        User {
+            id: Id(1),
+            name: "first".to_string()
+        }
+    );
 }
 
 #[tokio::test]
@@ -85,15 +94,32 @@ async fn test_option_property() {
     #[derive(Debug, PartialEq, Eq, FromRow)]
     struct User {
         id: Option<Id>,
+        name: String,
     }
-    let user: User = sql!("SELECT id, '' FROM users WHERE id = 1").await.unwrap();
-    assert_eq!(user, User { id: Some(Id(1)) });
+    let user: User = sql!("SELECT id, name FROM users WHERE id = 1")
+        .await
+        .unwrap();
+    assert_eq!(
+        user,
+        User {
+            id: Some(Id(1)),
+            name: "first".to_string()
+        }
+    );
 }
 
 #[tokio::test]
 async fn test_property_option() {
-    let users: Option<User> = sql!("SELECT id, '' FROM users WHERE id = 1").await.unwrap();
-    assert_eq!(users, Some(User { id: Id(1) }));
+    let users: Option<User> = sql!("SELECT id, name FROM users WHERE id = 1")
+        .await
+        .unwrap();
+    assert_eq!(
+        users,
+        Some(User {
+            id: Id(1),
+            name: "first".to_string()
+        })
+    );
 }
 
 #[tokio::test]
@@ -101,38 +127,70 @@ async fn test_vec_property() {
     #[derive(Debug, PartialEq, Eq, FromRow)]
     struct User {
         ids: Vec<Id>,
+        name: String,
     }
-    let user: User = sql!("SELECT ARRAY[4, 2]::BIGINT[] AS ids, ''")
+    let user: User = sql!("SELECT ARRAY[4, 2]::BIGINT[] AS ids, '' AS name")
         .await
         .unwrap();
     assert_eq!(
         user,
         User {
-            ids: vec![Id(4), Id(2)]
+            ids: vec![Id(4), Id(2)],
+            name: String::new()
         }
     );
 }
 
 #[tokio::test]
 async fn test_property_vec() {
-    let users: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-    assert_eq!(users, vec![User { id: Id(1) }, User { id: Id(2) }]);
+    let users: Vec<User> = sql!("SELECT id, name FROM users").await.unwrap();
+    assert_eq!(
+        users,
+        vec![
+            User {
+                id: Id(1),
+                name: "first".to_string()
+            },
+            User {
+                id: Id(2),
+                name: String::new()
+            }
+        ]
+    );
 }
 
 #[tokio::test]
 async fn test_param() {
     let id = Id(1);
-    let users: Vec<User> = sql!("SELECT id, role FROM users WHERE id = {id}")
+    let users: Vec<User> = sql!("SELECT id, name FROM users WHERE id = {id}")
         .await
         .unwrap();
-    assert_eq!(users, vec![User { id: Id(1) }]);
+    assert_eq!(
+        users,
+        vec![User {
+            id: Id(1),
+            name: "first".to_string()
+        }]
+    );
 }
 
 #[tokio::test]
 async fn test_vec_param() {
     let ids = vec![Id(1), Id(2)];
-    let users: Vec<User> = sql!("SELECT id, role FROM users WHERE id = ANY({ids})")
+    let users: Vec<User> = sql!("SELECT id, name FROM users WHERE id = ANY({ids})")
         .await
         .unwrap();
-    assert_eq!(users, vec![User { id: Id(1) }, User { id: Id(2) }]);
+    assert_eq!(
+        users,
+        vec![
+            User {
+                id: Id(1),
+                name: "first".to_string()
+            },
+            User {
+                id: Id(2),
+                name: String::new()
+            }
+        ]
+    );
 }
