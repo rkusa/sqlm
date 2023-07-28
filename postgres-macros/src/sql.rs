@@ -207,7 +207,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    let name = const_name(variant);
+                    let name = const_name(&variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -269,7 +269,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    let name = const_name(variant);
+                    let name = const_name(&variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -318,7 +318,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             if let Some((is_array, variants)) = enum_type(ty) {
                 let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
                 for variant in variants {
-                    let name = const_name(variant);
+                    let name = const_name(&variant);
                     enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
                 }
 
@@ -423,19 +423,23 @@ fn postgres_to_rust_type(
 }
 
 #[cfg(feature = "comptime")]
-fn enum_type(ty: &postgres::types::Type) -> Option<(bool, &[String])> {
+fn enum_type(ty: &postgres::types::Type) -> Option<(bool, Vec<String>)> {
     use postgres::types::Kind;
-    match ty.kind() {
-        Kind::Enum(variants) => Some((false, variants)),
+    let mut data = match ty.kind() {
+        Kind::Enum(variants) => Some((false, variants.clone())),
         Kind::Array(ty) => {
             if let Kind::Enum(variants) = ty.kind() {
-                Some((true, variants))
+                Some((true, variants.clone()))
             } else {
                 None
             }
         }
         _ => None,
+    };
+    if let Some((_, variants)) = &mut data {
+        variants.sort();
     }
+    data
 }
 
 struct Parameter {

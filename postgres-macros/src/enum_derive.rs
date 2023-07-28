@@ -31,19 +31,26 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
     new_generics.params.push(parse_quote!(Cols));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
-    for v in variants {
-        let vopts = extract_variant_options(&v.attrs)?;
-        let name = v.ident.to_string();
-        let name = if let Some(rename) = vopts.rename {
-            rename
-        } else if let Some(rename_all) = &opts.rename_all {
-            rename_all.apply(&name)
-        } else {
-            name
-        };
-        let name = const_name(&name);
+    let mut variants = variants
+        .into_iter()
+        .map(|v| {
+            let vopts = extract_variant_options(&v.attrs)?;
+            let name = v.ident.to_string();
+            let name = if let Some(rename) = vopts.rename {
+                rename
+            } else if let Some(rename_all) = &opts.rename_all {
+                rename_all.apply(&name)
+            } else {
+                name
+            };
+            Ok(name)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    variants.sort();
 
+    let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
+    for name in variants {
+        let name = const_name(&name);
         enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
     }
 
