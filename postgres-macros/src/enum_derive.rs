@@ -54,25 +54,13 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
         enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
     }
 
-    #[cfg(feature = "comptime")]
-    {
-        let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
-        Ok(quote! {
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
-                type Type = #enum_struct;
-            }
-        })
-    }
-    #[cfg(not(feature = "comptime"))]
-    {
-        Ok(quote! {
-            #[automatically_derived]
-            impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
-                type Type = Self;
-            }
-        })
-    }
+    let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
+    Ok(quote! {
+        #[automatically_derived]
+        impl #impl_generics ::sqlm_postgres::SqlType for #ident #ty_generics #where_clause {
+            type Type = #enum_struct;
+        }
+    })
 }
 
 #[derive(Default)]

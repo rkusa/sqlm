@@ -79,11 +79,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         }
     }
 
-    #[cfg(feature = "comptime")]
     let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
-    #[cfg(not(feature = "comptime"))]
-    let type_struct = quote! { ::sqlm_postgres::types::Struct<#ident> };
-
     Ok(quote! {
         #[automatically_derived]
         impl #impl_generics ::sqlm_postgres::FromRow<#type_struct> for #ident #ty_generics #where_clause {

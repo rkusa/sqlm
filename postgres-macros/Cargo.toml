@@ -7,18 +7,17 @@ edition = "2021"
 proc-macro = true
 
 [features]
-default = ["comptime", "json", "uuid"]
-comptime = ["postgres", "dep:dotenvy"]
-json = ["dep:serde_json", "postgres", "postgres/with-serde_json-1"]
-time = ["dep:time", "postgres", "postgres/with-time-0_3"]
-uuid = ["dep:uuid", "postgres", "postgres/with-uuid-1"]
+default = ["json", "uuid"]
+json = ["dep:serde_json", "postgres/with-serde_json-1"]
+time = ["dep:time", "postgres/with-time-0_3"]
+uuid = ["dep:uuid", "postgres/with-uuid-1"]
 
 [dependencies]
 ariadne = "0.3"
 chumsky = "1.0.0-alpha.4"
-dotenvy = { version = "0.15", optional = true }
+dotenvy = "0.15"
 heck = "0.4"
-postgres = { version = "0.19", optional = true }
+postgres = "0.19"
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
 serde_json = { version = "1.0", optional = true }
