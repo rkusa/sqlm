@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use tokio_postgres::types::{FromSqlOwned, ToSql};
 
-use crate::types::{Literal, SqlType, Struct};
+use crate::types::{Primitive, SqlType, Struct};
 use crate::{Error, FromRow, Sql};
 
 pub trait Query<Cols>: Sized {
@@ -12,13 +12,13 @@ pub trait Query<Cols>: Sized {
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>;
 }
 
-impl<T> Query<Literal<T::Type>> for T
+impl<T> Query<Primitive<T::Type>> for T
 where
     T: SqlType + FromSqlOwned + ToSql + Send + Sync + 'static,
     T::Type: Send + Sync + 'static,
 {
     fn query<'a>(
-        sql: &'a Sql<'a, Literal<T::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<T::Type>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         T::query_literal(sql)
     }

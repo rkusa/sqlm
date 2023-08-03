@@ -292,7 +292,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 };
                 return quote! {
                     {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Literal<#enum_struct>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#enum_struct>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,
@@ -304,7 +304,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
                 return quote! {
                     {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Literal<#ty>, _> {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
                             query: #result,
                             parameters: &[#(&(#typed_parameters),)*],
                             transaction: None,

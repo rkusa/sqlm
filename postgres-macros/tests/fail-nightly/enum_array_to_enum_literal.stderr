@@ -6,4 +6,4 @@ error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(Enum
    |
    = note: expected struct `sqlm_postgres::types::Enum<_>`
               found struct `Vec<sqlm_postgres::types::Enum<_>>`
-   = note: required for `Sql<'_, Literal<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, Role>` to implement `IntoFuture`
+   = note: required for `Sql<'_, Primitive<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, Role>` to implement `IntoFuture`

@@ -10,7 +10,7 @@ pub trait SqlType {
     type Type;
 
     fn query_literal<'a>(
-        sql: &'a Sql<'a, Literal<Self::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
@@ -30,7 +30,7 @@ pub struct StructColumn<T, const NAME: &'static str>(PhantomData<T>);
 
 pub struct Struct<T>(PhantomData<T>);
 
-pub struct Literal<T>(PhantomData<T>);
+pub struct Primitive<T>(PhantomData<T>);
 
 pub struct Enum<T>(PhantomData<T>);
 
@@ -46,7 +46,7 @@ where
     type Type = T::Type;
 
     fn query_literal<'a>(
-        sql: &'a Sql<'a, Literal<Self::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
@@ -69,7 +69,7 @@ where
     type Type = Vec<T::Type>;
 
     fn query_literal<'a>(
-        sql: &'a Sql<'a, Literal<Self::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
@@ -87,7 +87,7 @@ impl SqlType for Vec<u8> {
     type Type = Vec<u8>;
 
     fn query_literal<'a>(
-        sql: &'a Sql<'a, Literal<Self::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,

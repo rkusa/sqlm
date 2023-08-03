@@ -6,4 +6,4 @@ error[E0271]: type mismatch resolving `<String as SqlType>::Type == Vec<String>`
   |
   = note: expected struct `String`
              found struct `Vec<String>`
-  = note: required for `Sql<'_, Literal<Vec<String>>, String>` to implement `IntoFuture`
+  = note: required for `Sql<'_, Primitive<Vec<String>>, String>` to implement `IntoFuture`
