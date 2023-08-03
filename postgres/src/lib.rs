@@ -76,7 +76,7 @@ pub async fn connect() -> Result<Object, Error> {
     Ok(conn)
 }
 
-pub struct Sql<'a, Cols = (), T = ()> {
+pub struct Sql<'a, Cols, T> {
     // TODO: not pub?
     pub query: &'static str,
     pub parameters: &'a [&'a (dyn ToSql + Sync)],

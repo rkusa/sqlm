@@ -263,7 +263,19 @@ pub fn sql(item: TokenStream) -> TokenStream {
         }
 
         let col_count = stmt.columns().len();
-        if col_count == 1 {
+        if col_count == 0 {
+            return quote! {
+                {
+                    ::sqlm_postgres::Sql::<'_, (), ()> {
+                        query: #result,
+                        parameters: &[#(&(#typed_parameters),)*],
+                        transaction: None,
+                        marker: ::std::marker::PhantomData,
+                    }
+                }
+            }
+            .into();
+        } else if col_count == 1 {
             // Consider the result to be a literal
             let ty = stmt.columns()[0].type_();
             if let Some((is_array, variants)) = enum_type(ty) {

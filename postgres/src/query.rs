@@ -74,12 +74,9 @@ where
     }
 }
 
-impl<Cols> Query<Cols> for ()
-where
-    Cols: Send + Sync,
-{
+impl Query<()> for () {
     fn query<'a>(
-        sql: &'a Sql<'a, Cols, Self>,
+        sql: &'a Sql<'a, (), Self>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
             sql.execute().await?;
