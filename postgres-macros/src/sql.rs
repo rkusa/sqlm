@@ -264,6 +264,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     query: #result,
                     parameters: &[#(&(#typed_parameters),)*],
                     transaction: None,
+                    connection: None,
                     marker: ::std::marker::PhantomData,
                 }
             }
@@ -290,6 +291,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
                         transaction: None,
+                        connection: None,
                         marker: ::std::marker::PhantomData,
                     }
                 }
@@ -302,6 +304,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
                         transaction: None,
+                        connection: None,
                         marker: ::std::marker::PhantomData,
                     }
                 }
@@ -355,6 +358,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 query: #result,
                 parameters: &[#(&(#typed_parameters),)*],
                 transaction: None,
+                connection: None,
                 marker: ::std::marker::PhantomData,
             }
         }

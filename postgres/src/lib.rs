@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub use deadpool_postgres::Transaction;
-use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
+use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 pub use error::Error;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
@@ -80,10 +80,16 @@ pub struct Sql<'a, Cols, T> {
     pub query: &'static str,
     pub parameters: &'a [&'a (dyn ToSql + Sync)],
     pub transaction: Option<&'a Transaction<'a>>,
+    pub connection: Option<&'a ClientWrapper>,
     pub marker: PhantomData<(Cols, T)>,
 }
 
 impl<'a, Cols, T> Sql<'a, Cols, T> {
+    pub fn with(mut self, tx: &'a ClientWrapper) -> Self {
+        self.connection = Some(tx);
+        self
+    }
+
     pub fn with_transaction(mut self, tx: &'a Transaction<'a>) -> Self {
         self.transaction = Some(tx);
         self
@@ -93,6 +99,9 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
         if let Some(tx) = self.transaction {
             let stmt = tx.prepare_cached(self.query).await?;
             Ok(tx.query_one(&stmt, self.parameters).await?)
+        } else if let Some(conn) = self.connection {
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query_one(&stmt, self.parameters).await?)
         } else {
             let conn = connect().await?;
             let stmt = conn.prepare_cached(self.query).await?;
@@ -104,6 +113,9 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
         if let Some(tx) = self.transaction {
             let stmt = tx.prepare_cached(self.query).await?;
             Ok(tx.query_opt(&stmt, self.parameters).await?)
+        } else if let Some(conn) = self.connection {
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query_opt(&stmt, self.parameters).await?)
         } else {
             let conn = connect().await?;
             let stmt = conn.prepare_cached(self.query).await?;
@@ -115,6 +127,9 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
         if let Some(tx) = self.transaction {
             let stmt = tx.prepare_cached(self.query).await?;
             Ok(tx.query(&stmt, self.parameters).await?)
+        } else if let Some(conn) = self.connection {
+            let stmt = conn.prepare_cached(self.query).await?;
+            Ok(conn.query(&stmt, self.parameters).await?)
         } else {
             let conn = connect().await?;
             let stmt = conn.prepare_cached(self.query).await?;
@@ -126,6 +141,9 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
         if let Some(tx) = self.transaction {
             let stmt = tx.prepare_cached(self.query).await?;
             tx.execute(&stmt, self.parameters).await?;
+        } else if let Some(conn) = self.connection {
+            let stmt = conn.prepare_cached(self.query).await?;
+            conn.execute(&stmt, self.parameters).await?;
         } else {
             let conn = connect().await?;
             let stmt = conn.prepare_cached(self.query).await?;
