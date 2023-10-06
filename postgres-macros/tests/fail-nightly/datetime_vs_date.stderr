@@ -1,0 +1,7 @@
+error[E0271]: type mismatch resolving `<Date as SqlType>::Type == OffsetDateTime`
+ --> tests/fail-nightly/datetime_vs_date.rs:6:10
+  |
+6 |         .await
+  |          ^^^^^ expected `Date`, found `OffsetDateTime`
+  |
+  = note: required for `Sql<'_, Primitive<OffsetDateTime>, time::Date>` to implement `IntoFuture`

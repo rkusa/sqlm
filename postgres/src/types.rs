@@ -116,6 +116,8 @@ impl_type!(String);
 impl_type!(serde_json::Value);
 #[cfg(feature = "time")]
 impl_type!(time::OffsetDateTime);
+#[cfg(feature = "time")]
+impl_type!(time::Date);
 #[cfg(feature = "uuid")]
 impl_type!(uuid::Uuid);
 

@@ -204,6 +204,30 @@ mod time {
                 .unwrap();
         assert_eq!(val, expected);
     }
+
+    #[tokio::test]
+    async fn test_date() {
+        let expected = ::time::OffsetDateTime::now_utc().date();
+        let val: ::time::Date = sql!("SELECT {expected}::DATE").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_date_option() {
+        let expected = ::time::OffsetDateTime::now_utc().date();
+        let val: Option<::time::Date> = sql!("SELECT {expected}::DATE").await.unwrap();
+        assert_eq!(val, Some(expected));
+        let val: Option<::time::Date> = sql!("SELECT NULL::DATE").await.unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[tokio::test]
+    async fn test_date_vec() {
+        let expected = ::time::OffsetDateTime::now_utc().date();
+        let expected = vec![expected, expected - ::time::Duration::minutes(5)];
+        let val: Vec<::time::Date> = sql!("SELECT {expected}::DATE[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
 }
 
 #[cfg(feature = "uuid")]

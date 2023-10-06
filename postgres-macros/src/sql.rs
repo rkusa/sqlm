@@ -393,6 +393,12 @@ fn postgres_to_rust_type(
             Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
         }
 
+        // time::Date
+        #[cfg(feature = "time")]
+        ty if <::time::Date as FromSql>::accepts(ty) => {
+            Some((quote!(::time::Date), quote!(::time::Date)))
+        }
+
         // time::OffsetDateTime
         #[cfg(feature = "time")]
         ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => Some((
