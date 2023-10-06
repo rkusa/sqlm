@@ -6,5 +6,5 @@ error[E0277]: the trait bound `Vec<User>: Query<Struct<(StructColumn<i64, "id">,
    |                                                          |
    |                                                          help: remove the `.await`
    |
-   = help: the trait `Query<Struct<Cols>>` is implemented for `Vec<T>`
+   = help: the trait `Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"moderator">, EnumVariant<"user">)>, "role">)>>` is implemented for `Vec<User>`
    = note: required for `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<Enum<(EnumVariant<"admin">, ...)>, "role">)>, ...>` to implement `IntoFuture`
