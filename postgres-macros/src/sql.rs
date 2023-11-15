@@ -384,6 +384,8 @@ fn postgres_to_rust_type(
         ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str))),
         ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64))),
         ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
+        ty if <f64 as FromSql>::accepts(ty) => Some((quote!(f64), quote!(f64))),
+        ty if <f32 as FromSql>::accepts(ty) => Some((quote!(f32), quote!(f32))),
         ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
         ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
 

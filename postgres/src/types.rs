@@ -110,6 +110,8 @@ macro_rules! impl_type {
 
 impl_type!(i32);
 impl_type!(i64);
+impl_type!(f32);
+impl_type!(f64);
 impl_type!(bool);
 impl_type!(String);
 #[cfg(feature = "json")]

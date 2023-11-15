@@ -104,6 +104,60 @@ mod i32 {
     }
 }
 
+mod f32 {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_f32() {
+        let expected = 42.0f32;
+        let val: f32 = sql!("SELECT {expected}::FLOAT4").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_f32_option() {
+        let expected = 42.0f32;
+        let val: Option<f32> = sql!("SELECT {expected}::FLOAT4").await.unwrap();
+        assert_eq!(val, Some(expected));
+        let val: Option<f32> = sql!("SELECT NULL::FLOAT4").await.unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[tokio::test]
+    async fn test_f32_vec() {
+        let expected = vec![4.0f32, 2.0f32];
+        let val: Vec<f32> = sql!("SELECT {expected}::FLOAT4[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+}
+
+mod f64 {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_f64() {
+        let expected = 42.0f64;
+        let val: f64 = sql!("SELECT {expected}::FLOAT8").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_f64_option() {
+        let expected = 42.0f64;
+        let val: Option<f64> = sql!("SELECT {expected}::FLOAT8").await.unwrap();
+        assert_eq!(val, Some(expected));
+        let val: Option<f64> = sql!("SELECT NULL::FLOAT8").await.unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[tokio::test]
+    async fn test_f64_vec() {
+        let expected = vec![4.0f64, 2.0f64];
+        let val: Vec<f64> = sql!("SELECT {expected}::FLOAT8[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+}
+
 mod bool {
     use super::*;
 
