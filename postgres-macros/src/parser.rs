@@ -40,9 +40,9 @@ fn token_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a,
         // escaped `}` (via `}}`)
         just("}}").map(|_| Token::EscapedCurlyEnd),
         // reject $ (accidental direct use of positional parameters)
-        just("$").validate(|text: &str, span, emitter| {
+        just("$").validate(|text: &str, e, emitter| {
             emitter.emit(Rich::custom(
-                span,
+                e.span(),
                 "use {} instead of $x for positional parameters",
             ));
             Token::Text(text)
@@ -51,7 +51,7 @@ fn token_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a,
         none_of("{}$")
             .repeated()
             .at_least(1)
-            .slice()
+            .to_slice()
             .map(Token::Text),
         // arguments: {}, {0}, {name}
         just("{")

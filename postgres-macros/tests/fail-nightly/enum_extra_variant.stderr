@@ -2,8 +2,9 @@ error[E0277]: the trait bound `Vec<User>: Query<Struct<(StructColumn<i64, "id">,
   --> tests/fail-nightly/enum_extra_variant.rs:26:59
    |
 26 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not implemented for `Vec<User>`
-   |                                                          |
+   |                                                          -^^^^^
+   |                                                          ||
+   |                                                          |the trait `Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not implemented for `Vec<User>`
    |                                                          help: remove the `.await`
    |
    = help: the trait `Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"moderator">, EnumVariant<"user">)>, "role">)>>` is implemented for `Vec<User>`

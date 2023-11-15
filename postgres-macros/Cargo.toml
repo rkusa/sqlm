@@ -14,7 +14,7 @@ uuid = ["dep:uuid", "postgres/with-uuid-1"]
 
 [dependencies]
 ariadne = "0.3"
-chumsky = "1.0.0-alpha.4"
+chumsky = "1.0.0-alpha.6"
 dotenvy = "0.15"
 heck = "0.4"
 postgres = "0.19"
