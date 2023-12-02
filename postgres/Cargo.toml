@@ -20,6 +20,7 @@ sqlm-postgres-macros = { path = "../postgres-macros", default-features = false }
 time = { version = "0.3", optional = true }
 tokio-postgres = "0.7"
 tokio-postgres-rustls = "0.10"
+tracing = "0.1"
 uuid = { version = "1.4", optional = true }
 
 [dev-dependencies]
