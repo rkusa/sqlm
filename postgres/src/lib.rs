@@ -33,6 +33,7 @@ pub use types::SqlType;
 
 static POOL: OnceCell<Pool> = OnceCell::new();
 
+#[tracing::instrument]
 pub async fn connect() -> Result<Object, Error> {
     // Don't trace connect, as this would create an endless loop of connecting again and
     // again when persisting the connect trace!
