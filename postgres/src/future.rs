@@ -30,14 +30,14 @@ where
                         match T::query(&self).await {
                             Ok(r) => {
                                 let elapsed = start.elapsed();
-                                tracing::debug!(?elapsed, "sql query finished");
+                                tracing::trace!(?elapsed, "sql query finished");
                                 return Ok(r);
                             }
                             Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
                                 // retry pool size + 1 times if connection is closed (might have
                                 // received a closed one from the connection pool)
                                 i += 1;
-                                tracing::debug!("retry due to connection closed error");
+                                tracing::trace!("retry due to connection closed error");
                                 continue;
                             }
                             Err(err) => return Err(err),
