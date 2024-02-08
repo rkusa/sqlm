@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use tracing::Instrument;
 
+use crate::error::ErrorKind;
 use crate::query::Query;
 use crate::{Error, Sql};
 
@@ -33,14 +34,19 @@ where
                                 tracing::trace!(?elapsed, "sql query finished");
                                 return Ok(r);
                             }
-                            Err(Error::Postgres(err)) if err.is_closed() && i <= 5 => {
+                            Err(Error {
+                                kind: ErrorKind::Postgres(err),
+                                ..
+                            }) if err.is_closed() && i <= 5 => {
                                 // retry pool size + 1 times if connection is closed (might have
                                 // received a closed one from the connection pool)
                                 i += 1;
                                 tracing::trace!("retry due to connection closed error");
                                 continue;
                             }
-                            Err(err) => return Err(err),
+                            Err(err) => {
+                                return Err(err);
+                            }
                         }
                     }
                 }

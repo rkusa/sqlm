@@ -20,6 +20,7 @@ use std::sync::Arc;
 pub use deadpool_postgres::Transaction;
 use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 pub use error::Error;
+use error::ErrorKind;
 pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
@@ -42,7 +43,7 @@ pub async fn connect() -> Result<Connection, Error> {
     let pool = POOL.get_or_try_init(|| {
         let mut config = tokio_postgres::Config::from_str(
             dotenvy::var("DATABASE_URL")
-                .map_err(|_| Error::MissingDatabaseUrlEnv)?
+                .map_err(|_| ErrorKind::MissingDatabaseUrlEnv)?
                 .as_str(),
         )?;
         config.application_name(env!("CARGO_PKG_NAME"));
