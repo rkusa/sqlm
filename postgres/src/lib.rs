@@ -25,6 +25,7 @@ pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
 pub use row::{FromRow, Row};
+use rustls::crypto::CryptoProvider;
 pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
@@ -62,8 +63,8 @@ pub async fn connect() -> Result<Connection, Error> {
                 config,
                 {
                     let config = rustls::ClientConfig::builder()
-                        .with_safe_defaults()
-                        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify))
+                        .dangerous()
+                        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify::default()))
                         .with_no_client_auth();
                     tokio_postgres_rustls::MakeRustlsConnect::new(config)
                 },
@@ -157,18 +158,62 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
     }
 }
 
-struct NoServerCertVerify;
+#[derive(Debug)]
+struct NoServerCertVerify {
+    crypto_provider: CryptoProvider,
+}
 
-impl rustls::client::ServerCertVerifier for NoServerCertVerify {
+impl Default for NoServerCertVerify {
+    fn default() -> Self {
+        Self {
+            crypto_provider: rustls::crypto::ring::default_provider(),
+        }
+    }
+}
+
+impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {
     fn verify_server_cert(
         &self,
-        _end_entity: &rustls::Certificate,
-        _intermediates: &[rustls::Certificate],
-        _server_name: &rustls::ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
-        _ocsp: &[u8],
-        _now: std::time::SystemTime,
-    ) -> std::result::Result<rustls::client::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::ServerCertVerified::assertion())
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.crypto_provider.signature_verification_algorithms,
+        )
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.crypto_provider.signature_verification_algorithms,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
     }
 }
