@@ -2,9 +2,10 @@ error[E0277]: the trait bound `Vec<User>: Query<Struct<(StructColumn<i64, 689821
   --> tests/fail-stable/enum_missing_variant.rs:20:59
    |
 20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
-   |                                                          -^^^^^ the trait `Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`
-   |                                                          |
+   |                                                          -^^^^^
+   |                                                          ||
+   |                                                          |the trait `Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`
    |                                                          help: remove the `.await`
    |
-   = help: the trait `Query<Struct<Cols>>` is implemented for `Vec<T>`
+   = help: the trait `Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<10465144470622129318>,)>, 18137070463969723500>)>>` is implemented for `Vec<User>`
    = note: required for `Sql<'_, Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<Enum<...>, 18137070463969723500>)>, ...>` to implement `IntoFuture`

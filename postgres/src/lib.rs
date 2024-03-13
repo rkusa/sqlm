@@ -5,6 +5,7 @@
 #[cfg(test)]
 extern crate self as sqlm_postgres;
 
+mod connection;
 mod error;
 mod future;
 pub mod internal;
@@ -17,8 +18,9 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub use deadpool_postgres::Transaction;
-use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Object, Pool, RecyclingMethod};
+pub use connection::Connection;
+pub use deadpool_postgres::{Client, Transaction};
+use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Pool, RecyclingMethod};
 pub use error::Error;
 use error::ErrorKind;
 pub use future::SqlFuture;
@@ -35,10 +37,8 @@ pub use types::SqlType;
 
 static POOL: OnceCell<Pool> = OnceCell::new();
 
-pub type Connection = Object;
-
 #[tracing::instrument]
-pub async fn connect() -> Result<Connection, Error> {
+pub async fn connect() -> Result<deadpool_postgres::Client, Error> {
     // Don't trace connect, as this would create an endless loop of connecting again and
     // again when persisting the connect trace!
     let pool = POOL.get_or_try_init(|| {
@@ -90,71 +90,12 @@ pub struct Sql<'a, Cols, T> {
 }
 
 impl<'a, Cols, T> Sql<'a, Cols, T> {
-    pub fn with(mut self, tx: &'a ClientWrapper) -> Self {
-        self.connection = Some(tx);
-        self
-    }
-
-    pub fn with_transaction(mut self, tx: &'a Transaction<'a>) -> Self {
-        self.transaction = Some(tx);
-        self
-    }
-
-    async fn query_one(&self) -> Result<tokio_postgres::Row, Error> {
-        if let Some(tx) = self.transaction {
-            let stmt = tx.prepare_cached(self.query).await?;
-            Ok(tx.query_one(&stmt, self.parameters).await?)
-        } else if let Some(conn) = self.connection {
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query_one(&stmt, self.parameters).await?)
-        } else {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query_one(&stmt, self.parameters).await?)
-        }
-    }
-
-    async fn query_opt(&self) -> Result<Option<tokio_postgres::Row>, Error> {
-        if let Some(tx) = self.transaction {
-            let stmt = tx.prepare_cached(self.query).await?;
-            Ok(tx.query_opt(&stmt, self.parameters).await?)
-        } else if let Some(conn) = self.connection {
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query_opt(&stmt, self.parameters).await?)
-        } else {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query_opt(&stmt, self.parameters).await?)
-        }
-    }
-
-    async fn query(&self) -> Result<Vec<tokio_postgres::Row>, Error> {
-        if let Some(tx) = self.transaction {
-            let stmt = tx.prepare_cached(self.query).await?;
-            Ok(tx.query(&stmt, self.parameters).await?)
-        } else if let Some(conn) = self.connection {
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query(&stmt, self.parameters).await?)
-        } else {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(self.query).await?;
-            Ok(conn.query(&stmt, self.parameters).await?)
-        }
-    }
-
-    async fn execute(&self) -> Result<(), Error> {
-        if let Some(tx) = self.transaction {
-            let stmt = tx.prepare_cached(self.query).await?;
-            tx.execute(&stmt, self.parameters).await?;
-        } else if let Some(conn) = self.connection {
-            let stmt = conn.prepare_cached(self.query).await?;
-            conn.execute(&stmt, self.parameters).await?;
-        } else {
-            let conn = connect().await?;
-            let stmt = conn.prepare_cached(self.query).await?;
-            conn.execute(&stmt, self.parameters).await?;
-        }
-        Ok(())
+    pub fn run_with(self, conn: impl Connection + 'a) -> SqlFuture<'a, T>
+    where
+        T: Query<Cols> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
+        SqlFuture::with_connection(self, conn)
     }
 }
 

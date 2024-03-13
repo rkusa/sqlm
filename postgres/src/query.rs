@@ -9,6 +9,7 @@ use crate::{Error, FromRow, Sql};
 pub trait Query<Cols>: Sized {
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>;
 }
 
@@ -19,8 +20,9 @@ where
 {
     fn query<'a>(
         sql: &'a Sql<'a, Primitive<T::Type>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
-        T::query_literal(sql)
+        T::query_literal(sql, conn)
     }
 }
 
@@ -31,9 +33,10 @@ where
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let row = sql.query_one().await?;
+            let row = conn.query_one(sql.query, sql.parameters).await?;
             Ok(FromRow::<Struct<Cols>>::from_row(row.into())?)
         })
     }
@@ -46,9 +49,10 @@ where
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let row = sql.query_opt().await?;
+            let row = conn.query_opt(sql.query, sql.parameters).await?;
             match row {
                 Some(row) => Ok(Some(FromRow::<Struct<Cols>>::from_row(row.into())?)),
                 None => Ok(None),
@@ -64,9 +68,10 @@ where
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            let rows = sql.query().await?;
+            let rows = conn.query(sql.query, sql.parameters).await?;
             rows.into_iter()
                 .map(|row| FromRow::<Struct<Cols>>::from_row(row.into()).map_err(Error::from))
                 .collect()
@@ -77,9 +82,10 @@ where
 impl Query<()> for () {
     fn query<'a>(
         sql: &'a Sql<'a, (), Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
-            sql.execute().await?;
+            conn.execute(sql.query, sql.parameters).await?;
             Ok(())
         })
     }

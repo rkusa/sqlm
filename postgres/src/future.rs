@@ -19,16 +19,33 @@ where
     type IntoFuture = SqlFuture<'a, T>;
 
     fn into_future(self) -> Self::IntoFuture {
+        SqlFuture::new(self)
+    }
+}
+
+pub struct SqlFuture<'a, T> {
+    future: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>,
+    marker: PhantomData<&'a ()>,
+}
+
+impl<'a, T> SqlFuture<'a, T> {
+    pub fn new<Cols>(sql: Sql<'a, Cols, T>) -> Self
+    where
+        T: Query<Cols> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
         let span =
-            tracing::debug_span!("sql query", query = self.query, parameters = ?self.parameters);
+            tracing::debug_span!("sql query", query = sql.query, parameters = ?sql.parameters);
         let start = Instant::now();
 
         SqlFuture {
             future: Box::pin(
+                // Note: changes here must be applied to `with_connection` below too!
                 async move {
                     let mut i = 1;
                     loop {
-                        match T::query(&self).await {
+                        let conn = super::connect().await?;
+                        match T::query(&sql, &conn).await {
                             Ok(r) => {
                                 let elapsed = start.elapsed();
                                 tracing::trace!(?elapsed, "sql query finished");
@@ -55,11 +72,49 @@ where
             marker: PhantomData,
         }
     }
-}
 
-pub struct SqlFuture<'a, T> {
-    future: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>,
-    marker: PhantomData<&'a ()>,
+    pub fn with_connection<Cols>(sql: Sql<'a, Cols, T>, conn: impl super::Connection + 'a) -> Self
+    where
+        T: Query<Cols> + Send + Sync + 'a,
+        Cols: Send + Sync + 'a,
+    {
+        let span =
+            tracing::debug_span!("sql query", query = sql.query, parameters = ?sql.parameters);
+        let start = Instant::now();
+
+        SqlFuture {
+            future: Box::pin(
+                // Note: changes here must be applied to `bew` above too!
+                async move {
+                    let mut i = 1;
+                    loop {
+                        match T::query(&sql, &conn).await {
+                            Ok(r) => {
+                                let elapsed = start.elapsed();
+                                tracing::trace!(?elapsed, "sql query finished");
+                                return Ok(r);
+                            }
+                            Err(Error {
+                                kind: ErrorKind::Postgres(err),
+                                ..
+                            }) if err.is_closed() && i <= 5 => {
+                                // retry pool size + 1 times if connection is closed (might have
+                                // received a closed one from the connection pool)
+                                i += 1;
+                                tracing::trace!("retry due to connection closed error");
+                                continue;
+                            }
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
+                    }
+                }
+                .instrument(span),
+            ),
+            marker: PhantomData,
+        }
+    }
 }
 
 impl<'a, T> Future for SqlFuture<'a, T> {

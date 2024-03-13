@@ -11,13 +11,14 @@ pub trait SqlType {
 
     fn query_literal<'a>(
         sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = sql.query_one().await?;
+            let row = conn.query_one(sql.query, sql.parameters).await?;
             Ok(row.try_get(0)?)
         })
     }
@@ -47,13 +48,14 @@ where
 
     fn query_literal<'a>(
         sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = sql.query_opt().await?;
+            let row = conn.query_opt(sql.query, sql.parameters).await?;
             match row {
                 Some(row) => Ok(row.try_get::<'_, _, Option<T>>(0)?),
                 None => Ok(None),
@@ -70,13 +72,14 @@ where
 
     fn query_literal<'a>(
         sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = sql.query_one().await?;
+            let row = conn.query_one(sql.query, sql.parameters).await?;
             Ok(row.try_get(0)?)
         })
     }
@@ -88,13 +91,14 @@ impl SqlType for Vec<u8> {
 
     fn query_literal<'a>(
         sql: &'a Sql<'a, Primitive<Self::Type>, Self>,
+        conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>
     where
         Self: FromSqlOwned + ToSql + Send + Sync,
         Self::Type: Send + Sync,
     {
         Box::pin(async move {
-            let row = sql.query_one().await?;
+            let row = conn.query_one(sql.query, sql.parameters).await?;
             Ok(row.try_get(0)?)
         })
     }
