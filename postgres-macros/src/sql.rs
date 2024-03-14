@@ -414,6 +414,12 @@ fn postgres_to_rust_type(
             Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
         }
 
+        // pgvector::Vector
+        #[cfg(feature = "pgvector")]
+        ty if <::pgvector::Vector as FromSql>::accepts(ty) => {
+            Some((quote!(::pgvector::Vector), quote!(::pgvector::Vector)))
+        }
+
         // Unsupported
         _ => None,
     }

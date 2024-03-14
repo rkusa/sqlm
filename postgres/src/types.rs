@@ -126,6 +126,8 @@ impl_type!(time::OffsetDateTime);
 impl_type!(time::Date);
 #[cfg(feature = "uuid")]
 impl_type!(uuid::Uuid);
+#[cfg(feature = "pgvector")]
+impl_type!(pgvector::Vector);
 
 impl<'a> SqlType for &'a str {
     type Type = String;
