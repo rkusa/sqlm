@@ -7,6 +7,7 @@ use deadpool_postgres::GenericClient;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 
+use crate::error::ErrorKind;
 use crate::Error;
 
 pub trait Connection: Send + Sync {
@@ -90,7 +91,9 @@ impl<'t> Connection for deadpool_postgres::Transaction<'t> {
     ) -> impl Future<Output = Result<Row, Error>> + Send + 'a {
         async move {
             let stmt = self.prepare_cached(query).await?;
-            Ok(tokio_postgres::Transaction::query_one(self, &stmt, parameters).await?)
+            tokio_postgres::Transaction::query_opt(self, &stmt, parameters)
+                .await?
+                .ok_or_else(|| ErrorKind::RowNotFound.into())
         }
     }
 
