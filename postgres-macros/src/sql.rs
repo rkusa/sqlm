@@ -2,7 +2,9 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::str::FromStr;
+use std::sync::Arc;
 
+use postgres::config::SslMode;
 use postgres::Config;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -174,8 +176,19 @@ pub fn sql(item: TokenStream) -> TokenStream {
         }
     };
 
-    // TODO: allow TLS?
-    let mut client = match config.connect(postgres::NoTls) {
+    // TODO: take all possible SSL variants into account, see e.g.
+    // https://github.com/jbg/tokio-postgres-rustls/issues/11
+    let client = match config.get_ssl_mode() {
+        SslMode::Disable => config.connect(postgres::NoTls),
+        _ => {
+            let client_config = rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(NoServerCertVerify::default()))
+                .with_no_client_auth();
+            config.connect(tokio_postgres_rustls::MakeRustlsConnect::new(client_config))
+        }
+    };
+    let mut client = match client {
         Ok(client) => client,
         Err(err) => {
             return syn::Error::new(
@@ -477,5 +490,65 @@ impl Parse for Input {
                 })
                 .transpose()?,
         })
+    }
+}
+
+#[derive(Debug)]
+struct NoServerCertVerify {
+    crypto_provider: rustls::crypto::CryptoProvider,
+}
+
+impl Default for NoServerCertVerify {
+    fn default() -> Self {
+        Self {
+            crypto_provider: rustls::crypto::ring::default_provider(),
+        }
+    }
+}
+
+impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.crypto_provider.signature_verification_algorithms,
+        )
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.crypto_provider.signature_verification_algorithms,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
     }
 }
