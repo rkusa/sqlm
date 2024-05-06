@@ -1,9 +1,20 @@
-error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>`
+error[E0277]: the trait bound `Role: Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>>` is not satisfied
   --> tests/fail-nightly/enum_array_to_enum_literal.rs:17:10
    |
 17 |         .await
-   |          ^^^^^ expected `Enum<(EnumVariant<"admin">, ...)>`, found `Vec<Enum<(..., ...)>>`
+   |         -^^^^^
+   |         ||
+   |         |the trait `Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>>` is not implemented for `Role`, which is required by `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, _>: IntoFuture`
+   |         help: remove the `.await`
    |
-   = note: expected struct `sqlm_postgres::types::Enum<_>`
-              found struct `Vec<sqlm_postgres::types::Enum<_>>`
-   = note: required for `Sql<'_, Primitive<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, Role>` to implement `IntoFuture`
+   = help: the following other types implement trait `Query<Cols>`:
+             <() as Query<()>>
+             <Option<T> as Query<Primitive<<T as SqlType>::Type>>>
+             <Option<T> as Query<Struct<Cols>>>
+             <Option<Vec<u8>> as Query<Primitive<Bytea>>>
+             <Vec<T> as Query<Primitive<<T as SqlType>::Type>>>
+             <Vec<T> as Query<Struct<Cols>>>
+             <Vec<T> as Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
+             <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
+           and $N others
+   = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>>>, Role>` to implement `IntoFuture`

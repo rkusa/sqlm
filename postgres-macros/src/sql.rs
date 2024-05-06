@@ -222,14 +222,14 @@ pub fn sql(item: TokenStream) -> TokenStream {
             let type_check = if is_array {
                 quote! {
                     {
-                        const fn assert_type<T: ::sqlm_postgres::SqlType<Type = #enum_struct>>(_: &[T]) {}
+                        const fn assert_type<T: ::sqlm_postgres::internal::AsSqlType<SqlType = #enum_struct>>(_: &[T]) {}
                         assert_type(&(#param));
                     }
                 }
             } else {
                 quote! {
                     {
-                        const fn assert_type<T: ::sqlm_postgres::SqlType<Type = #enum_struct>>(_: &T) {}
+                        const fn assert_type<T: ::sqlm_postgres::internal::AsSqlType<SqlType = #enum_struct>>(_: &T) {}
                         assert_type(&(#param));
                     }
                 }
@@ -244,7 +244,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             continue;
         }
 
-        let Some((ty_owned, ty_borrowed)) = postgres_to_rust_type(ty) else {
+        let Some((ty_owned, ty_borrowed, _)) = postgres_to_rust_type(ty) else {
             return syn::Error::new(
                 input.query.span(),
                 format!("unsupporte postgres type: {ty:?}"),
@@ -255,18 +255,18 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
         // `Option::from` is used to allow parameters to be an Option
         typed_parameters.push(quote! {
+            {
                 {
-                    {
-                        const fn assert_type<T, S>(_: &T)
-                        where
-                            T: ::sqlm_postgres::SqlType<Type = S>,
-                            for<'a> ::sqlm_postgres::internal::Valid<'a, #ty_borrowed, #ty_owned>: From<S>
-                        {}
-                        assert_type(&(#param));
-                    }
-                    &(#param)
+                    const fn assert_type<T, S>(_: &T)
+                    where
+                        T: ::sqlm_postgres::internal::AsSqlType<SqlType = S>,
+                        for<'a> ::sqlm_postgres::internal::Valid<'a, #ty_borrowed, #ty_owned>: From<S>
+                    {}
+                    assert_type(&(#param));
                 }
-            });
+                &(#param)
+            }
+        });
     }
 
     let col_count = stmt.columns().len();
@@ -294,13 +294,13 @@ pub fn sql(item: TokenStream) -> TokenStream {
             }
 
             let enum_struct = if is_array {
-                quote! { Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>> }
+                quote! { ::sqlm_postgres::types::Array<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>> }
             } else {
-                quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> }
+                quote! { ::sqlm_postgres::types::Primitive<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>> }
             };
             return quote! {
                 {
-                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#enum_struct>, _> {
+                    ::sqlm_postgres::Sql::<'_, #enum_struct, _> {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
                         transaction: None,
@@ -310,19 +310,34 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 }
             }
             .into();
-        } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
-            return quote! {
-                {
-                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
-                        query: #result,
-                        parameters: &[#(&(#typed_parameters),)*],
-                        transaction: None,
-                        connection: None,
-                        marker: ::std::marker::PhantomData,
+        } else if let Some((ty, _, is_array)) = postgres_to_rust_type(ty) {
+            if is_array {
+                return quote! {
+                    {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
+                            query: #result,
+                            parameters: &[#(&(#typed_parameters),)*],
+                            transaction: None,
+                            connection: None,
+                            marker: ::std::marker::PhantomData,
+                        }
                     }
                 }
+                .into();
+            } else {
+                return quote! {
+                    {
+                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
+                            query: #result,
+                            parameters: &[#(&(#typed_parameters),)*],
+                            transaction: None,
+                            connection: None,
+                            marker: ::std::marker::PhantomData,
+                        }
+                    }
+                }
+                .into();
             }
-            .into();
         } else {
             return syn::Error::new(
                 input.query.span(),
@@ -352,7 +367,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             } else {
                 struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name>));
             }
-        } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
+        } else if let Some((ty, _, _)) = postgres_to_rust_type(ty) {
             struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#ty, #name>));
         } else {
             return syn::Error::new(
@@ -381,7 +396,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
 fn postgres_to_rust_type(
     ty: &postgres::types::Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
+) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream, bool)> {
     use postgres::types::{FromSql, Kind};
 
     if let Kind::Array(ty) = ty.kind() {
@@ -390,28 +405,34 @@ fn postgres_to_rust_type(
             return None;
         }
 
-        return postgres_to_rust_type(ty).map(|(ty, _)| (quote!(Vec<#ty>), quote!([#ty])));
+        return postgres_to_rust_type(ty).map(|(ty, _, _)| (quote!(Vec<#ty>), quote!([#ty]), true));
     }
 
     match ty {
-        ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str))),
-        ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64))),
-        ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32))),
-        ty if <f64 as FromSql>::accepts(ty) => Some((quote!(f64), quote!(f64))),
-        ty if <f32 as FromSql>::accepts(ty) => Some((quote!(f32), quote!(f32))),
-        ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool))),
-        ty if <Vec<u8> as FromSql>::accepts(ty) => Some((quote!(Vec<u8>), quote!([u8]))),
+        ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str), false)),
+        ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64), false)),
+        ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32), false)),
+        ty if <f64 as FromSql>::accepts(ty) => Some((quote!(f64), quote!(f64), false)),
+        ty if <f32 as FromSql>::accepts(ty) => Some((quote!(f32), quote!(f32), false)),
+        ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool), false)),
+        ty if <Vec<u8> as FromSql>::accepts(ty) => Some((
+            quote!(::sqlm_postgres::types::Bytea),
+            quote!(::sqlm_postgres::types::Bytea),
+            false,
+        )),
 
         // serde_json::Value
         #[cfg(feature = "json")]
-        ty if <::serde_json::Value as FromSql>::accepts(ty) => {
-            Some((quote!(::serde_json::Value), quote!(::serde_json::Value)))
-        }
+        ty if <::serde_json::Value as FromSql>::accepts(ty) => Some((
+            quote!(::serde_json::Value),
+            quote!(::serde_json::Value),
+            false,
+        )),
 
         // time::Date
         #[cfg(feature = "time")]
         ty if <::time::Date as FromSql>::accepts(ty) => {
-            Some((quote!(::time::Date), quote!(::time::Date)))
+            Some((quote!(::time::Date), quote!(::time::Date), false))
         }
 
         // time::OffsetDateTime
@@ -419,19 +440,22 @@ fn postgres_to_rust_type(
         ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => Some((
             quote!(::time::OffsetDateTime),
             quote!(::time::OffsetDateTime),
+            false,
         )),
 
         // uuid::Uuid
         #[cfg(feature = "uuid")]
         ty if <::uuid::Uuid as FromSql>::accepts(ty) => {
-            Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid)))
+            Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid), false))
         }
 
         // pgvector::Vector
         #[cfg(feature = "pgvector")]
-        ty if <::pgvector::Vector as FromSql>::accepts(ty) => {
-            Some((quote!(::pgvector::Vector), quote!(::pgvector::Vector)))
-        }
+        ty if <::pgvector::Vector as FromSql>::accepts(ty) => Some((
+            quote!(::pgvector::Vector),
+            quote!(::pgvector::Vector),
+            false,
+        )),
 
         // Unsupported
         _ => None,

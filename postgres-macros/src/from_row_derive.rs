@@ -47,7 +47,9 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         let (ty, kind) = extract_inner_type(&f.ty)?;
 
         let name = const_name(&name);
-        struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<<#ty as ::sqlm_postgres::SqlType>::Type, #name>));
+        struct_columns.push(parse_quote!(
+            ::sqlm_postgres::types::StructColumn<<#ty as ::sqlm_postgres::internal::AsSqlType>::SqlType, #name>
+        ));
 
         // Forward only certain args
         let attrs = f

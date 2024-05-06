@@ -1,9 +1,22 @@
-error[E0271]: type mismatch resolving `<Role as SqlType>::Type == Vec<Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>`
+error[E0277]: the trait bound `Role: Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not satisfied
   --> tests/fail-stable/enum_array_to_enum_literal.rs:17:10
    |
 17 |         .await
-   |          ^^^^^ expected `Enum<(..., ...)>`, found `Vec<Enum<(..., ...)>>`
+   |         -^^^^^
+   |         ||
+   |         |the trait `Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not implemented for `Role`, which is required by `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, _>: IntoFuture`
+   |         help: remove the `.await`
    |
-   = note: expected struct `sqlm_postgres::types::Enum<_>`
-              found struct `Vec<sqlm_postgres::types::Enum<_>>`
-   = note: required for `Sql<'_, Primitive<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, Role>` to implement `IntoFuture`
+   = help: the following other types implement trait `Query<Cols>`:
+             <Vec<u8> as Query<Primitive<Bytea>>>
+             <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
+             <Vec<Vec<u8>> as Query<sqlm_postgres::types::Array<Vec<Bytea>>>>
+             <Vec<T> as Query<Struct<Cols>>>
+             <Vec<T> as Query<Primitive<<T as SqlType>::Type>>>
+             <Vec<T> as Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
+             <Option<Vec<u8>> as Query<Primitive<Bytea>>>
+             <Option<T> as Query<Struct<Cols>>>
+           and $N others
+   = note: required for `Sql<'_, Array<Vec<Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, Role>` to implement `IntoFuture`
+   = note: the full name for the type has been written to '$WORKSPACE/target/tests/trybuild/aarch64-apple-darwin/debug/deps/$CRATE-4bc7215b1b514162.long-type-14335032845333733167.txt'
+   = note: consider using `--verbose` to print the full type name to the console

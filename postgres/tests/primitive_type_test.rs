@@ -48,6 +48,15 @@ mod string {
         let val: Vec<String> = sql!("SELECT {expected}::VARCHAR[]").await.unwrap();
         assert_eq!(val, expected);
     }
+
+    #[tokio::test]
+    async fn test_vec_of_string() {
+        let expected = vec!["foo".to_string(), "bar".to_string()];
+        let val: Vec<String> = sql!("SELECT * FROM unnest({expected}::VARCHAR[])")
+            .await
+            .unwrap();
+        assert_eq!(val, expected);
+    }
 }
 
 mod i64 {
@@ -73,6 +82,15 @@ mod i64 {
     async fn test_i64_vec() {
         let expected = vec![4i64, 2i64];
         let val: Vec<i64> = sql!("SELECT {expected}::BIGINT[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_i64() {
+        let expected = vec![4i64, 2i64];
+        let val: Vec<i64> = sql!("SELECT * FROM unnest({expected}::BIGINT[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
@@ -102,6 +120,15 @@ mod i32 {
         let val: Vec<i32> = sql!("SELECT {expected}::INT[]").await.unwrap();
         assert_eq!(val, expected);
     }
+
+    #[tokio::test]
+    async fn test_vec_of_i32() {
+        let expected = vec![4i32, 2i32];
+        let val: Vec<i32> = sql!("SELECT * FROM unnest({expected}::INT[])")
+            .await
+            .unwrap();
+        assert_eq!(val, expected);
+    }
 }
 
 mod f32 {
@@ -127,6 +154,15 @@ mod f32 {
     async fn test_f32_vec() {
         let expected = vec![4.0f32, 2.0f32];
         let val: Vec<f32> = sql!("SELECT {expected}::FLOAT4[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_f32() {
+        let expected = vec![4.0f32, 2.0f32];
+        let val: Vec<f32> = sql!("SELECT * FROM unnest({expected}::FLOAT4[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
@@ -156,6 +192,15 @@ mod f64 {
         let val: Vec<f64> = sql!("SELECT {expected}::FLOAT8[]").await.unwrap();
         assert_eq!(val, expected);
     }
+
+    #[tokio::test]
+    async fn test_vec_of_f64() {
+        let expected = vec![4.0f64, 2.0f64];
+        let val: Vec<f64> = sql!("SELECT * FROM unnest({expected}::FLOAT8[])")
+            .await
+            .unwrap();
+        assert_eq!(val, expected);
+    }
 }
 
 mod bool {
@@ -181,6 +226,51 @@ mod bool {
     async fn test_bool_vec() {
         let expected = vec![true, false];
         let val: Vec<bool> = sql!("SELECT {expected}::BOOL[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_bool() {
+        let expected = vec![true, false];
+        let val: Vec<bool> = sql!("SELECT * FROM unnest({expected}::BOOL[])")
+            .await
+            .unwrap();
+        assert_eq!(val, expected);
+    }
+}
+
+mod byte {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_byte() {
+        let expected = b"test".to_vec();
+        let val: Vec<u8> = sql!("SELECT {expected}::BYTEA").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_byte_option() {
+        let expected = b"test".to_vec();
+        let val: Option<Vec<u8>> = sql!("SELECT {expected}::BYTEA").await.unwrap();
+        assert_eq!(val, Some(expected));
+        let val: Option<Vec<u8>> = sql!("SELECT NULL::BYTEA").await.unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[tokio::test]
+    async fn test_byte_vec() {
+        let expected = vec![b"a".to_vec(), b"b".to_vec()];
+        let val: Vec<Vec<u8>> = sql!("SELECT {expected}::BYTEA[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_byte() {
+        let expected = vec![b"a".to_vec(), b"b".to_vec()];
+        let val: Vec<Vec<u8>> = sql!("SELECT * FROM unnest({expected}::BYTEA[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
@@ -212,6 +302,18 @@ mod json {
             serde_json::Value::Null,
         ];
         let val: Vec<serde_json::Value> = sql!("SELECT {expected}::JSONB[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_json() {
+        let expected = vec![
+            serde_json::Value::String("foobar".to_string()),
+            serde_json::Value::Null,
+        ];
+        let val: Vec<serde_json::Value> = sql!("SELECT * FROM unnest({expected}::JSONB[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
@@ -260,6 +362,19 @@ mod time {
     }
 
     #[tokio::test]
+    async fn test_vec_of_datetime() {
+        let expected = ::time::OffsetDateTime::now_utc()
+            .replace_nanosecond(0)
+            .unwrap();
+        let expected = vec![expected, expected - ::time::Duration::minutes(5)];
+        let val: Vec<::time::OffsetDateTime> =
+            sql!("SELECT * FROM unnest({expected}::TIMESTAMP WITH TIME ZONE[])")
+                .await
+                .unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
     async fn test_date() {
         let expected = ::time::OffsetDateTime::now_utc().date();
         let val: ::time::Date = sql!("SELECT {expected}::DATE").await.unwrap();
@@ -280,6 +395,16 @@ mod time {
         let expected = ::time::OffsetDateTime::now_utc().date();
         let expected = vec![expected, expected - ::time::Duration::minutes(5)];
         let val: Vec<::time::Date> = sql!("SELECT {expected}::DATE[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_date() {
+        let expected = ::time::OffsetDateTime::now_utc().date();
+        let expected = vec![expected, expected - ::time::Duration::minutes(5)];
+        let val: Vec<::time::Date> = sql!("SELECT * FROM unnest({expected}::DATE[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
@@ -308,6 +433,15 @@ mod uuid {
     async fn test_uuid_vec() {
         let expected = vec![::uuid::Uuid::new_v4(), ::uuid::Uuid::new_v4()];
         let val: Vec<::uuid::Uuid> = sql!("SELECT {expected}::UUID[]").await.unwrap();
+        assert_eq!(val, expected);
+    }
+
+    #[tokio::test]
+    async fn test_vec_of_uuid() {
+        let expected = vec![::uuid::Uuid::new_v4(), ::uuid::Uuid::new_v4()];
+        let val: Vec<::uuid::Uuid> = sql!("SELECT * FROM unnest({expected}::UUID[])")
+            .await
+            .unwrap();
         assert_eq!(val, expected);
     }
 }
