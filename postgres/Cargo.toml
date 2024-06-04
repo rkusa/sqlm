@@ -2,6 +2,10 @@
 name = "sqlm-postgres"
 version = "0.1.0"
 edition = "2021"
+authors = ["Markus Ast <m+cargo@rkusa.st>"]
+description = "simple `sql!` macro that works similar to `format!`"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rkusa/sqlm"
 
 [features]
 default = ["json", "time", "uuid", "pgvector"]
@@ -17,9 +21,7 @@ pgvector = ["sqlm-postgres-macros/pgvector", "dep:pgvector"]
 [dependencies]
 deadpool-postgres = "0.13"
 dotenvy = "0.15"
-http-error = { version = "0.3.0-alpha.1", features = [
-    "tracing",
-] } # git = "https://github.com/rkusa/http-error.git", rev = "1f0630c" } # path = "../../http-error" }
+http-error = { version = "0.3.0-alpha.1", features = ["tracing"] }
 once_cell = "1.17"
 pgvector = { version = "0.3", features = ["postgres"], optional = true }
 rustls = { version = "0.23" }
