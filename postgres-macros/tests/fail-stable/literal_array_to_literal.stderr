@@ -1,0 +1,20 @@
+error[E0277]: the trait bound `String: Query<sqlm_postgres::types::Array<Vec<String>>>` is not satisfied
+ --> tests/fail-stable/literal_array_to_literal.rs:6:10
+  |
+6 |         .await
+  |         -^^^^^
+  |         ||
+  |         |the trait `Query<sqlm_postgres::types::Array<Vec<String>>>` is not implemented for `String`, which is required by `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, _>: IntoFuture`
+  |         help: remove the `.await`
+  |
+  = help: the following other types implement trait `Query<Cols>`:
+            <Vec<u8> as Query<Primitive<Bytea>>>
+            <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
+            <Vec<Vec<u8>> as Query<sqlm_postgres::types::Array<Vec<Bytea>>>>
+            <Vec<T> as Query<Struct<Cols>>>
+            <Vec<T> as Query<Primitive<<T as SqlType>::Type>>>
+            <Vec<T> as Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
+            <Option<Vec<u8>> as Query<Primitive<Bytea>>>
+            <Option<T> as Query<Struct<Cols>>>
+          and $N others
+  = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` to implement `IntoFuture`

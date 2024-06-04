@@ -1,0 +1,1 @@
+../fail-stable/literal_array_to_literal.rs

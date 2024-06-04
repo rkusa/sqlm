@@ -1,5 +1,5 @@
 error[E0277]: the trait bound `String: Query<sqlm_postgres::types::Array<Vec<String>>>` is not satisfied
- --> tests/fail/literal_array_to_literal.rs:6:10
+ --> tests/fail-nightly/literal_array_to_literal.rs:6:10
   |
 6 |         .await
   |         -^^^^^
