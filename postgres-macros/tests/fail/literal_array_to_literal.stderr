@@ -8,13 +8,13 @@ error[E0277]: the trait bound `String: Query<sqlm_postgres::types::Array<Vec<Str
   |         help: remove the `.await`
   |
   = help: the following other types implement trait `Query<Cols>`:
-            <Vec<u8> as Query<Primitive<Bytea>>>
-            <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
-            <Vec<Vec<u8>> as Query<sqlm_postgres::types::Array<Vec<Bytea>>>>
-            <Vec<T> as Query<Struct<Cols>>>
-            <Vec<T> as Query<Primitive<<T as SqlType>::Type>>>
-            <Vec<T> as Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
-            <Option<Vec<u8>> as Query<Primitive<Bytea>>>
+            <() as Query<()>>
+            <Option<T> as Query<Primitive<<T as SqlType>::Type>>>
             <Option<T> as Query<Struct<Cols>>>
+            <Option<Vec<u8>> as Query<Primitive<Bytea>>>
+            <Vec<T> as Query<Primitive<<T as SqlType>::Type>>>
+            <Vec<T> as Query<Struct<Cols>>>
+            <Vec<T> as Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
+            <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
           and $N others
   = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` to implement `IntoFuture`

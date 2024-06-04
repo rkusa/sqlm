@@ -519,13 +519,16 @@ impl Parse for Input {
 
 #[derive(Debug)]
 struct NoServerCertVerify {
-    crypto_provider: rustls::crypto::CryptoProvider,
+    crypto_provider: Arc<rustls::crypto::CryptoProvider>,
 }
 
 impl Default for NoServerCertVerify {
     fn default() -> Self {
         Self {
-            crypto_provider: rustls::crypto::ring::default_provider(),
+            crypto_provider: Arc::clone(
+                rustls::crypto::CryptoProvider::get_default()
+                    .expect("no default provider for rustls installed"),
+            ),
         }
     }
 }
@@ -571,7 +574,7 @@ impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        rustls::crypto::ring::default_provider()
+        self.crypto_provider
             .signature_verification_algorithms
             .supported_schemes()
     }

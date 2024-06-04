@@ -27,7 +27,6 @@ pub use future::SqlFuture;
 use once_cell::sync::OnceCell;
 pub use query::Query;
 pub use row::{FromRow, Row};
-use rustls::crypto::CryptoProvider;
 pub use sqlm_postgres_macros::{sql, Enum, FromRow};
 pub use tokio_postgres;
 use tokio_postgres::config::SslMode;
@@ -101,13 +100,16 @@ impl<'a, Cols, T> Sql<'a, Cols, T> {
 
 #[derive(Debug)]
 struct NoServerCertVerify {
-    crypto_provider: CryptoProvider,
+    crypto_provider: Arc<rustls::crypto::CryptoProvider>,
 }
 
 impl Default for NoServerCertVerify {
     fn default() -> Self {
         Self {
-            crypto_provider: rustls::crypto::ring::default_provider(),
+            crypto_provider: Arc::clone(
+                rustls::crypto::CryptoProvider::get_default()
+                    .expect("no default provider for rustls installed"),
+            ),
         }
     }
 }
@@ -153,7 +155,7 @@ impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        rustls::crypto::ring::default_provider()
+        self.crypto_provider
             .signature_verification_algorithms
             .supported_schemes()
     }

@@ -14,6 +14,4 @@ error[E0277]: the trait bound `Vec<User>: Query<Struct<(StructColumn<i64, "id">,
              <Vec<Vec<u8>> as Query<Primitive<Bytea>>>
              <Vec<Vec<u8>> as Query<sqlm_postgres::types::Array<Vec<Bytea>>>>
              <Vec<u8> as Query<Primitive<Bytea>>>
-   = note: required for `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<Enum<(EnumVariant<"admin">, ...)>, "role">)>, ...>` to implement `IntoFuture`
-   = note: the full name for the type has been written to '$WORKSPACE/target/tests/trybuild/aarch64-apple-darwin/debug/deps/$CRATE-108a3d1f17e7e28e.long-type-6590895828837905940.txt'
-   = note: consider using `--verbose` to print the full type name to the console
+   = note: required for `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>, Vec<User>>` to implement `IntoFuture`
