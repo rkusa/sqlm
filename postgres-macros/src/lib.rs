@@ -19,7 +19,7 @@ pub fn derive_fromsql(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(Enum, attributes(postgres))]
+#[proc_macro_derive(Enum)]
 pub fn derive_enum(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
 

@@ -10,6 +10,18 @@ use tokio_postgres::Row;
 use crate::error::ErrorKind;
 use crate::Error;
 
+/// A trait used to allow functions to accept connections without having to explicit about whether
+/// it's a transaction or not.
+///
+/// # Example
+/// ```
+/// # use sqlm_postgres::{sql, Connection};
+/// pub async fn fetch_username(id: i64, conn: impl Connection) -> Result<String, sqlm_postgres::Error> {
+///     sql!("SELECT name FROM users WHERE id = {id}")
+///         .run_with(conn)
+///         .await
+/// }
+/// ```
 pub trait Connection: Send + Sync {
     fn query_one<'a>(
         &'a self,

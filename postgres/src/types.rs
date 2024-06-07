@@ -6,6 +6,99 @@ use tokio_postgres::types::{FromSqlOwned, ToSql};
 
 use crate::{Error, Sql};
 
+/// A trait used to which Rust type a Postgres type is read into.
+///
+/// # Example
+///
+/// This can be useful to implement manually when e.g. reading a Postgres string column into an
+/// enum.
+///
+/// ```
+/// #[derive(Debug, Default, Clone, Copy)]
+/// pub enum Role {
+///     #[default]
+///     User,
+///     Admin,
+/// }
+///
+/// impl sqlm_postgres::SqlType for Role {
+///     type Type = String;
+/// }
+///
+/// impl Role {
+///     pub fn as_str(&self) -> &'static str {
+///         match self {
+///             Self::User => "user",
+///             Self::Admin => "admin",
+///         }
+///     }
+/// }
+///
+/// impl<'a> sqlm_postgres::FromSql<'a> for Role {
+///     fn from_sql(
+///         ty: &postgres_types::Type,
+///         raw: &'a [u8],
+///     ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+///         use std::str::FromStr;
+///         Ok(Role::from_str(<&str>::from_sql(ty, raw)?)?)
+///     }
+///
+///     fn accepts(ty: &postgres_types::Type) -> bool {
+///         <&str as sqlm_postgres::FromSql<'_>>::accepts(ty)
+///     }
+/// }
+///
+/// impl sqlm_postgres::ToSql for Role {
+///     fn to_sql(
+///         &self,
+///         ty: &postgres_types::Type,
+///         out: &mut bytes::BytesMut,
+///     ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+///     where
+///         Self: Sized,
+///     {
+///         <&str as sqlm_postgres::ToSql>::to_sql(&self.as_str(), ty, out)
+///     }
+///
+///     fn accepts(ty: &postgres_types::Type) -> bool
+///     where
+///         Self: Sized,
+///     {
+///         <&str as sqlm_postgres::ToSql>::accepts(ty)
+///     }
+///
+///     fn to_sql_checked(
+///         &self,
+///         ty: &postgres_types::Type,
+///         out: &mut bytes::BytesMut,
+///     ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
+///         <&str as sqlm_postgres::ToSql>::to_sql_checked(&self.as_str(), ty, out)
+///     }
+/// }
+///
+/// impl std::str::FromStr for Role {
+///     type Err = UnknownRole;
+///
+///     fn from_str(s: &str) -> Result<Self, Self::Err> {
+///         match s {
+///             "user" => Ok(Role::User),
+///             "admin" => Ok(Role::Admin),
+///             s => Err(UnknownRole(s.to_string())),
+///         }
+///     }
+/// }
+///
+/// #[derive(Debug)]
+/// pub struct UnknownRole(String);
+///
+/// impl std::fmt::Display for UnknownRole {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         write!(f, "Unknown bevel lhs `{}`", self.0)
+///     }
+/// }
+///
+/// impl std::error::Error for UnknownRole {}
+/// ```
 pub trait SqlType {
     type Type;
 

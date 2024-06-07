@@ -23,13 +23,14 @@ where
     }
 }
 
+/// A future for executing an sql query.
 pub struct SqlFuture<'a, T> {
     future: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>,
     marker: PhantomData<&'a ()>,
 }
 
 impl<'a, T> SqlFuture<'a, T> {
-    pub fn new<Cols>(sql: Sql<'a, Cols, T>) -> Self
+    pub(crate) fn new<Cols>(sql: Sql<'a, Cols, T>) -> Self
     where
         T: Query<Cols> + Send + Sync + 'a,
         Cols: Send + Sync + 'a,
@@ -73,7 +74,10 @@ impl<'a, T> SqlFuture<'a, T> {
         }
     }
 
-    pub fn with_connection<Cols>(sql: Sql<'a, Cols, T>, conn: impl super::Connection + 'a) -> Self
+    pub(crate) fn with_connection<Cols>(
+        sql: Sql<'a, Cols, T>,
+        conn: impl super::Connection + 'a,
+    ) -> Self
     where
         T: Query<Cols> + Send + Sync + 'a,
         Cols: Send + Sync + 'a,

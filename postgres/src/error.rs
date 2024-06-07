@@ -3,9 +3,10 @@ use std::{error, fmt};
 use http_error::{HttpError, StatusCode};
 use tracing::Span;
 
+/// An error communicating with the Postgres server.
 #[derive(Debug)]
 pub struct Error {
-    pub kind: ErrorKind,
+    pub(crate) kind: ErrorKind,
     span: Span,
 }
 
@@ -26,6 +27,7 @@ impl Error {
         }
     }
 
+    /// Whether this is a row not found error.
     pub fn is_row_not_found(&self) -> bool {
         matches!(self.kind, ErrorKind::RowNotFound)
     }

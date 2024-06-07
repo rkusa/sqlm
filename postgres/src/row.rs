@@ -1,11 +1,18 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
 
+/// A row of data returned from Postgres.
 pub struct Row<Cols> {
     row: tokio_postgres::Row,
     marker: PhantomData<Cols>,
 }
 
+/// A trait for types that can be created from a [`Row`] (a postgres row containing columns as
+/// constraint by `Cols`).
+///
+/// This is usually derived via [`FromRow`] and not implemented manually.
+///
+/// [`FromRow`]: `derive@crate::FromRow`
 pub trait FromRow<Cols>: Sized {
     fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error>;
 }
