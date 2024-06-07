@@ -6,6 +6,7 @@ authors = ["Markus Ast <m+cargo@rkusa.st>"]
 description = "`sql!` macro to write compile-time checked database queries similar to how `format!` works"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rkusa/sqlm"
+readme = "../README.md"
 
 [features]
 default = ["json", "time", "uuid", "pgvector"]
