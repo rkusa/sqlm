@@ -36,7 +36,7 @@
 //! ```
 //!
 //! # Usage
-//! - Add `sqlm_postgres` to your dependencies
+//! - Add `sqlm-postgres` to your dependencies
 //! - Make the `DATABASE_URL` env variable available during compile time (e.g. via adding an `.env`
 //!   file)
 //! - Start using the [`sql!`] macro (no further setup necessary; a connection pool is automatically

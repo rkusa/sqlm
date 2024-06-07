@@ -1,11 +1,11 @@
 /// Creates a parameterized, compile-time checked database query that accepts parameters similar to
 /// the [`format!`] macro.
 ///
-/// The compile-time checks requrire a database connection, expecting a `DATABASE_URL` env to be set
+/// The compile-time checks require a database connection, expecting a `DATABASE_URL` env to be set
 /// accordingly.
 ///
 /// The returned type can either be a struct (that implements [`FromRow`]), a literal (string,
-/// interger, ...), or a [`Vec`] or [`Option`] of the former.
+/// integer, ...), or a [`Vec`] or [`Option`] of the former.
 ///
 /// A connection is automatically established, but also be explicitly set via
 /// [`Sql::run_with`].

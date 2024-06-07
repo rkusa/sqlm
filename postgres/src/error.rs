@@ -52,7 +52,7 @@ impl fmt::Display for Error {
             ErrorKind::RowNotFound => f.write_str("No rows returned, but at least one expected"),
             ErrorKind::Postgres(err) => err.fmt(f),
             ErrorKind::Build(_) => write!(f, "failed to build postgres connection pool"),
-            ErrorKind::Pool(_) => write!(f, "failed to acquire postgress connection from pool"),
+            ErrorKind::Pool(_) => write!(f, "failed to acquire postgres connection from pool"),
         }
     }
 }
