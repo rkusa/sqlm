@@ -1,0 +1,10 @@
+[package]
+name = "sqlm-sqlite"
+version = "0.1.0"
+edition = "2021"
+authors = ["Markus Ast <m+cargo@rkusa.st>"]
+description = "reserved"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rkusa/sqlm"
+
+[dependencies]
