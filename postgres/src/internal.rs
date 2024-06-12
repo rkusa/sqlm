@@ -130,6 +130,9 @@ where
 impl AsSqlType for Vec<u8> {
     type SqlType = Bytea;
 }
+impl<'a> AsSqlType for &'a [u8] {
+    type SqlType = Bytea;
+}
 
 impl AsSqlType for Vec<Vec<u8>> {
     type SqlType = Self;
