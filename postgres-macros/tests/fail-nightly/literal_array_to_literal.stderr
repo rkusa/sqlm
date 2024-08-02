@@ -8,13 +8,14 @@ error[E0277]: the trait bound `String: sqlm_postgres::query::Query<sqlm_postgres
   |         help: remove the `.await`
   |
   = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
-            <() as sqlm_postgres::query::Query<()>>
-            <Option<T> as sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>>
-            <Option<T> as sqlm_postgres::query::Query<Struct<Cols>>>
-            <Option<Vec<u8>> as sqlm_postgres::query::Query<Primitive<Bytea>>>
-            <Vec<T> as sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>>
-            <Vec<T> as sqlm_postgres::query::Query<Struct<Cols>>>
-            <Vec<T> as sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>>
-            <Vec<Vec<u8>> as sqlm_postgres::query::Query<Primitive<Bytea>>>
-          and $N others
+            `()` implements `sqlm_postgres::query::Query<()>`
+            `Option<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
+            `Option<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`
+            `Option<Vec<u8>>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
+            `Vec<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
+            `Vec<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`
+            `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>`
+            `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
+            `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<Bytea>>>`
+            `Vec<u8>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
   = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` to implement `IntoFuture`
