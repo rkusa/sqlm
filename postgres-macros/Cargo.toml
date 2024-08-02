@@ -21,7 +21,7 @@ ariadne = "0.4"
 chumsky = "1.0.0-alpha.6"
 dotenvy = "0.15"
 heck = "0.5"
-pgvector = { version = "0.3", features = ["postgres"], optional = true }
+pgvector = { version = "0.4", features = ["postgres"], optional = true }
 postgres = "0.19"
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
