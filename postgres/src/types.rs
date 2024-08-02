@@ -143,6 +143,10 @@ macro_rules! impl_type {
         impl SqlType for $ty {
             type Type = Self;
         }
+
+        impl<'a> SqlType for &'a $ty {
+            type Type = $ty;
+        }
     };
 }
 
