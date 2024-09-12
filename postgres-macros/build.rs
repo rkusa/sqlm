@@ -5,4 +5,6 @@ fn main() {
 }
 
 #[rustversion::not(nightly)]
-fn main() {}
+fn main() {
+    println!("cargo::rustc-check-cfg=cfg(nightly_column_names)");
+}
