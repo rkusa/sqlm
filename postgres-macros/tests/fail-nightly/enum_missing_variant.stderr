@@ -1,12 +1,13 @@
-error[E0277]: the trait bound `Vec<User>: sqlm_postgres::query::Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not satisfied
+error[E0277]: the trait bound `Vec<User>: sqlm_postgres::query::Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not satisfied
   --> tests/fail-nightly/enum_missing_variant.rs:20:59
    |
 20 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
    |                                                          -^^^^^
    |                                                          ||
-   |                                                          |the trait `sqlm_postgres::query::Query<Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>>` is not implemented for `Vec<User>`, which is required by `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>, _>: IntoFuture`
+   |                                                          |unsatisfied trait bound
    |                                                          help: remove the `.await`
    |
+   = help: the trait `sqlm_postgres::query::Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`
    = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
              `Vec<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
              `Vec<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`
@@ -14,4 +15,4 @@ error[E0277]: the trait bound `Vec<User>: sqlm_postgres::query::Query<Struct<(St
              `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
              `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<Bytea>>>`
              `Vec<u8>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
-   = note: required for `Sql<'_, Struct<(StructColumn<i64, "id">, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<"admin">, EnumVariant<"user">)>, "role">)>, Vec<User>>` to implement `IntoFuture`
+   = note: required for `Sql<'_, Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>, Vec<User>>` to implement `IntoFuture`
