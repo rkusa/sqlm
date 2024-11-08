@@ -4,10 +4,9 @@ error[E0277]: the trait bound `Role: sqlm_postgres::query::Query<sqlm_postgres::
 17 |         .await
    |         -^^^^^
    |         ||
-   |         |unsatisfied trait bound
+   |         |the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not implemented for `Role`, which is required by `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, _>: IntoFuture`
    |         help: remove the `.await`
    |
-   = help: the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not implemented for `Role`
    = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
              `()` implements `sqlm_postgres::query::Query<()>`
              `Option<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`

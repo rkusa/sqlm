@@ -4,10 +4,9 @@ error[E0277]: the trait bound `Vec<User>: sqlm_postgres::query::Query<Struct<(St
 23 |     let _: Vec<User> = sql!("SELECT id, role FROM users").await.unwrap();
    |                                                          -^^^^^
    |                                                          ||
-   |                                                          |unsatisfied trait bound
+   |                                                          |the trait `sqlm_postgres::query::Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`, which is required by `Sql<'_, Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>, _>: IntoFuture`
    |                                                          help: remove the `.await`
    |
-   = help: the trait `sqlm_postgres::query::Query<Struct<(StructColumn<i64, 6898215271518772730>, StructColumn<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>, 18137070463969723500>)>>` is not implemented for `Vec<User>`
    = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
              `Vec<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
              `Vec<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`

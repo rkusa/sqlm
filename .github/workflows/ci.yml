@@ -33,7 +33,7 @@ jobs:
           --health-retries 5
 
     env:
-        DATABASE_URL: postgresql://sqlm-test:sqlm-test@localhost/sqlm-test
+      DATABASE_URL: postgresql://sqlm-test:sqlm-test@localhost/sqlm-test
 
     steps:
       - name: Add build dependencies
@@ -46,11 +46,9 @@ jobs:
         run: psql $DATABASE_URL < postgres/testdb.sql
 
       - name: Install ${{matrix.toolchain}} toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{matrix.toolchain}}
-          override: true
           components: rustfmt, clippy
 
       - name: Install cargo-hack
@@ -58,7 +56,7 @@ jobs:
 
       - name: Test
         run: cargo hack test --workspace --feature-powerset --depth 2
-      
+
       - name: Clippy
         run: cargo hack check --workspace --feature-powerset --depth 1
 
