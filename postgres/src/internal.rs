@@ -126,11 +126,24 @@ where
     type SqlType = Vec<T::Type>;
 }
 
+impl<T> AsSqlType for Option<Vec<T>>
+where
+    T: SqlType,
+{
+    type SqlType = Vec<T::Type>;
+}
+
 // BYTEA
 impl AsSqlType for Vec<u8> {
     type SqlType = Bytea;
 }
+impl AsSqlType for Option<Vec<u8>> {
+    type SqlType = Bytea;
+}
 impl<'a> AsSqlType for &'a [u8] {
+    type SqlType = Bytea;
+}
+impl<'a> AsSqlType for Option<&'a [u8]> {
     type SqlType = Bytea;
 }
 
