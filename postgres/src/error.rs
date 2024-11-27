@@ -31,6 +31,15 @@ impl Error {
     pub fn is_row_not_found(&self) -> bool {
         matches!(self.kind, ErrorKind::RowNotFound)
     }
+
+    /// Whether this is a duplicate key error (unique constraint violation).
+    pub fn is_duplicate_key(&self) -> bool {
+        if let ErrorKind::Postgres(err) = &self.kind {
+            err.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION)
+        } else {
+            false
+        }
+    }
 }
 
 impl error::Error for Error {
