@@ -40,6 +40,15 @@ impl Error {
             false
         }
     }
+
+    /// Whether this is a foreign key error (foreign key constraint violation).
+    pub fn is_foreign_key(&self) -> bool {
+        if let ErrorKind::Postgres(err) = &self.kind {
+            err.code() == Some(&tokio_postgres::error::SqlState::FOREIGN_KEY_VIOLATION)
+        } else {
+            false
+        }
+    }
 }
 
 impl error::Error for Error {
