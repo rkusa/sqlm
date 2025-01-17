@@ -54,7 +54,7 @@
 extern crate self as sqlm_postgres;
 
 mod connection;
-mod error;
+pub mod error;
 mod future;
 #[doc(hidden)]
 pub mod internal;

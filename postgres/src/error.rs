@@ -1,6 +1,7 @@
 use std::{error, fmt};
 
 use http_error::{HttpError, StatusCode};
+pub use tokio_postgres::error::SqlState;
 use tracing::Span;
 
 /// An error communicating with the Postgres server.
@@ -30,6 +31,14 @@ impl Error {
     /// Whether this is a row not found error.
     pub fn is_row_not_found(&self) -> bool {
         matches!(self.kind, ErrorKind::RowNotFound)
+    }
+
+    pub fn code(&self) -> Option<&SqlState> {
+        if let ErrorKind::Postgres(err) = &self.kind {
+            err.code()
+        } else {
+            None
+        }
     }
 
     /// Whether this is a duplicate key error (unique constraint violation).
