@@ -4,7 +4,7 @@ error[E0277]: the trait bound `String: sqlm_postgres::query::Query<sqlm_postgres
 6 |         .await
   |         -^^^^^
   |         ||
-  |         |the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<String>>>` is not implemented for `String`, which is required by `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, _>: IntoFuture`
+  |         |the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<String>>>` is not implemented for `String`
   |         help: remove the `.await`
   |
   = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
