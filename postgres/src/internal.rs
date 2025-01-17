@@ -11,7 +11,7 @@ impl<'a, T> From<&'a T> for Valid<'a, T, T> {
     }
 }
 
-impl<'a, T> From<T> for Valid<'a, T, T> {
+impl<T> From<T> for Valid<'_, T, T> {
     fn from(_: T) -> Self {
         Self(PhantomData)
     }
@@ -23,7 +23,7 @@ impl<'a, T> From<Option<&'a T>> for Valid<'a, T, T> {
     }
 }
 
-impl<'a, T> From<Option<T>> for Valid<'a, T, T> {
+impl<T> From<Option<T>> for Valid<'_, T, T> {
     fn from(_: Option<T>) -> Self {
         Self(PhantomData)
     }
@@ -35,7 +35,7 @@ impl<'a> From<&'a str> for Valid<'a, str, String> {
     }
 }
 
-impl<'a> From<String> for Valid<'a, str, String> {
+impl From<String> for Valid<'_, str, String> {
     fn from(_: String) -> Self {
         Self(PhantomData)
     }
@@ -47,7 +47,7 @@ impl<'a> From<Option<&'a str>> for Valid<'a, str, String> {
     }
 }
 
-impl<'a> From<Option<String>> for Valid<'a, str, String> {
+impl From<Option<String>> for Valid<'_, str, String> {
     fn from(_: Option<String>) -> Self {
         Self(PhantomData)
     }
@@ -59,13 +59,13 @@ impl<'a, T> From<&'a [T]> for Valid<'a, [T], Vec<T>> {
     }
 }
 
-impl<'a, T> From<T> for Valid<'a, [T], Vec<T>> {
+impl<T> From<T> for Valid<'_, [T], Vec<T>> {
     fn from(_: T) -> Self {
         Self(PhantomData)
     }
 }
 
-impl<'a, T> From<Vec<T>> for Valid<'a, [T], Vec<T>> {
+impl<T> From<Vec<T>> for Valid<'_, [T], Vec<T>> {
     fn from(_: Vec<T>) -> Self {
         Self(PhantomData)
     }
@@ -77,25 +77,25 @@ impl<'a, T> From<Option<&'a [T]>> for Valid<'a, [T], Vec<T>> {
     }
 }
 
-impl<'a, T> From<Option<Vec<T>>> for Valid<'a, [T], Vec<T>> {
+impl<T> From<Option<Vec<T>>> for Valid<'_, [T], Vec<T>> {
     fn from(_: Option<Vec<T>>) -> Self {
         Self(PhantomData)
     }
 }
 
-impl<'a> From<i32> for Valid<'a, i64> {
+impl From<i32> for Valid<'_, i64> {
     fn from(_: i32) -> Self {
         Self(PhantomData)
     }
 }
 
-impl<'a> From<Vec<u8>> for Valid<'a, Bytea> {
+impl From<Vec<u8>> for Valid<'_, Bytea> {
     fn from(_: Vec<u8>) -> Self {
         Self(PhantomData)
     }
 }
 
-impl<'a> From<Vec<Vec<u8>>> for Valid<'a, [Bytea], Vec<Bytea>> {
+impl From<Vec<Vec<u8>>> for Valid<'_, [Bytea], Vec<Bytea>> {
     fn from(_: Vec<Vec<u8>>) -> Self {
         Self(PhantomData)
     }
@@ -140,10 +140,10 @@ impl AsSqlType for Vec<u8> {
 impl AsSqlType for Option<Vec<u8>> {
     type SqlType = Bytea;
 }
-impl<'a> AsSqlType for &'a [u8] {
+impl AsSqlType for &[u8] {
     type SqlType = Bytea;
 }
-impl<'a> AsSqlType for Option<&'a [u8]> {
+impl AsSqlType for Option<&[u8]> {
     type SqlType = Bytea;
 }
 

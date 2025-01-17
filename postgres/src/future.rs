@@ -121,7 +121,7 @@ impl<'a, T> SqlFuture<'a, T> {
     }
 }
 
-impl<'a, T> Future for SqlFuture<'a, T> {
+impl<T> Future for SqlFuture<'_, T> {
     type Output = Result<T, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

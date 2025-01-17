@@ -167,6 +167,6 @@ impl_type!(uuid::Uuid);
 #[cfg(feature = "pgvector")]
 impl_type!(pgvector::Vector);
 
-impl<'a> SqlType for &'a str {
+impl SqlType for &str {
     type Type = String;
 }

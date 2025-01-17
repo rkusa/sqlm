@@ -153,7 +153,7 @@ impl Connection for deadpool_postgres::Client {
     }
 }
 
-impl<'t> Connection for deadpool_postgres::Transaction<'t> {
+impl Connection for deadpool_postgres::Transaction<'_> {
     fn query_one<'a>(
         &'a self,
         query: &'a str,
@@ -259,7 +259,7 @@ impl<'t> Connection for deadpool_postgres::Transaction<'t> {
     }
 }
 
-impl<'b, C> Connection for &'b C
+impl<C> Connection for &C
 where
     C: Connection,
 {
