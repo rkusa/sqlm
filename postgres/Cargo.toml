@@ -22,7 +22,7 @@ pgvector = ["sqlm-postgres-macros/pgvector", "dep:pgvector"]
 [dependencies]
 deadpool-postgres = "0.14"
 dotenvy = "0.15"
-http-error = { version = "0.3.0-alpha.1", features = ["tracing"] }
+http-error = { version = "0.3.0-alpha.2", features = ["tracing"] }
 once_cell = "1.17"
 pgvector = { version = "0.4", features = ["postgres"], optional = true }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
