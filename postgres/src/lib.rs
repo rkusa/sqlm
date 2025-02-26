@@ -74,14 +74,14 @@ use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Pool, RecyclingMe
 pub use error::Error;
 use error::ErrorKind;
 pub use future::SqlFuture;
-pub use macros::{sql, Enum, FromRow};
+pub use macros::{Enum, FromRow, sql};
 use once_cell::sync::OnceCell;
 use query::Query;
 pub use row::{FromRow, Row};
 pub use tokio_postgres;
+use tokio_postgres::NoTls;
 use tokio_postgres::config::SslMode;
 pub use tokio_postgres::types::{FromSql, ToSql};
-use tokio_postgres::NoTls;
 pub use types::SqlType;
 
 static POOL: OnceCell<Pool> = OnceCell::new();

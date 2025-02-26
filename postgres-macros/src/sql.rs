@@ -1,18 +1,18 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use postgres::config::SslMode;
 use postgres::Config;
+use postgres::config::SslMode;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{parse_macro_input, parse_quote, Expr, LitStr, Type};
+use syn::{Expr, LitStr, Type, parse_macro_input, parse_quote};
 
 use crate::const_name;
 use crate::parser::{self, Argument, Token};
@@ -238,7 +238,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             typed_parameters.push(quote! {
                 {
                     #type_check
-                    &(#param)
+                    (#param)
                 }
             });
             continue;
@@ -272,14 +272,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
     let col_count = stmt.columns().len();
     if col_count == 0 {
         return quote! {
-            {
-                ::sqlm_postgres::Sql::<'_, (), ()> {
-                    query: #result,
-                    parameters: &[#(&(#typed_parameters),)*],
-                    transaction: None,
-                    connection: None,
-                    marker: ::std::marker::PhantomData,
-                }
+            ::sqlm_postgres::Sql::<'_, (), ()> {
+                query: #result,
+                parameters: &[#(&(#typed_parameters),)*],
+                transaction: None,
+                connection: None,
+                marker: ::std::marker::PhantomData,
             }
         }
         .into();
@@ -299,8 +297,19 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 quote! { ::sqlm_postgres::types::Primitive<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>> }
             };
             return quote! {
-                {
-                    ::sqlm_postgres::Sql::<'_, #enum_struct, _> {
+                ::sqlm_postgres::Sql::<'_, #enum_struct, _> {
+                    query: #result,
+                    parameters: &[#(&(#typed_parameters),)*],
+                    transaction: None,
+                    connection: None,
+                    marker: ::std::marker::PhantomData,
+                }
+            }
+            .into();
+        } else if let Some((ty, _, is_array)) = postgres_to_rust_type(ty) {
+            if is_array {
+                return quote! {
+                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
                         transaction: None,
@@ -308,32 +317,15 @@ pub fn sql(item: TokenStream) -> TokenStream {
                         marker: ::std::marker::PhantomData,
                     }
                 }
-            }
-            .into();
-        } else if let Some((ty, _, is_array)) = postgres_to_rust_type(ty) {
-            if is_array {
-                return quote! {
-                    {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
-                            query: #result,
-                            parameters: &[#(&(#typed_parameters),)*],
-                            transaction: None,
-                            connection: None,
-                            marker: ::std::marker::PhantomData,
-                        }
-                    }
-                }
                 .into();
             } else {
                 return quote! {
-                    {
-                        ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
-                            query: #result,
-                            parameters: &[#(&(#typed_parameters),)*],
-                            transaction: None,
-                            connection: None,
-                            marker: ::std::marker::PhantomData,
-                        }
+                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
+                        query: #result,
+                        parameters: &[#(&(#typed_parameters),)*],
+                        transaction: None,
+                        connection: None,
+                        marker: ::std::marker::PhantomData,
                     }
                 }
                 .into();
@@ -381,14 +373,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
 
     let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
     quote! {
-        {
-            ::sqlm_postgres::Sql::<'_, #type_struct, _> {
-                query: #result,
-                parameters: &[#(&(#typed_parameters),)*],
-                transaction: None,
-                connection: None,
-                marker: ::std::marker::PhantomData,
-            }
+        ::sqlm_postgres::Sql::<'_, #type_struct, _> {
+            query: #result,
+            parameters: &[#(&(#typed_parameters),)*],
+            transaction: None,
+            connection: None,
+            marker: ::std::marker::PhantomData,
         }
     }
     .into()

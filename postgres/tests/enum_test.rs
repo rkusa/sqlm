@@ -1,5 +1,5 @@
 use postgres_types::{FromSql, ToSql};
-use sqlm_postgres::{sql, Enum, FromRow};
+use sqlm_postgres::{Enum, FromRow, sql};
 
 #[derive(Debug, Default, FromSql, ToSql, Enum, PartialEq, Eq)]
 #[postgres(name = "role")]

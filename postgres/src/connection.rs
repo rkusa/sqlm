@@ -4,11 +4,11 @@
 use std::future::Future;
 
 use deadpool_postgres::GenericClient;
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
+use tokio_postgres::types::ToSql;
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 /// A trait used to allow functions to accept connections without having to explicit about whether
 /// it's a transaction or not.

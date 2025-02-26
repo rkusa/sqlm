@@ -1,4 +1,4 @@
-use sqlm_postgres::{sql, FromRow};
+use sqlm_postgres::{FromRow, sql};
 
 #[tokio::test]
 async fn test_from_row() {

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
-use crate::types::Bytea;
 use crate::SqlType;
+use crate::types::Bytea;
 
 pub struct Valid<'a, B: 'a + ?Sized, O = B>(PhantomData<(&'a B, O)>);
 

@@ -1,5 +1,5 @@
 use postgres_types::{FromSql, ToSql};
-use sqlm_postgres::{sql, FromRow, SqlType};
+use sqlm_postgres::{FromRow, SqlType, sql};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Id(i64);

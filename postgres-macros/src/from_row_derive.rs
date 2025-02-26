@@ -3,8 +3,8 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    parse_quote, token, Attribute, Data, DataStruct, DeriveInput, Error, Expr, Fields, Path,
-    PathArguments, Type,
+    Attribute, Data, DataStruct, DeriveInput, Error, Expr, Fields, Path, PathArguments, Type,
+    parse_quote, token,
 };
 
 use crate::const_name;

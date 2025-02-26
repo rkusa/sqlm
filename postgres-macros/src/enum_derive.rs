@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, token, Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path, Type};
+use syn::{Attribute, Data, DataEnum, DeriveInput, Error, LitStr, Path, Type, parse_quote, token};
 
 use crate::const_name;
 use crate::rename::RenameAll;

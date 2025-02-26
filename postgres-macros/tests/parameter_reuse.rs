@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use sqlm_postgres::{sql, Sql};
+use sqlm_postgres::{Sql, sql};
 
 #[test]
 fn parameter_reuse_named() {

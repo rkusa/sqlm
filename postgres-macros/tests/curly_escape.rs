@@ -1,4 +1,4 @@
-use sqlm_postgres::{sql, Sql};
+use sqlm_postgres::{Sql, sql};
 
 #[test]
 fn curly_escape() {
