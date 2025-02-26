@@ -3,6 +3,31 @@ use std::marker::PhantomData;
 use crate::SqlType;
 use crate::types::Bytea;
 
+#[inline]
+pub const fn assert_type<T, S, Borrowed: ?Sized, Owned>(t: &T) -> &T
+where
+    T: AsSqlType<SqlType = S>,
+    for<'a> Valid<'a, Borrowed, Owned>: From<S>,
+{
+    t
+}
+
+#[inline]
+pub const fn assert_type_enum<T, S>(t: &T) -> &T
+where
+    T: AsSqlType<SqlType = S>,
+{
+    t
+}
+
+#[inline]
+pub const fn assert_type_enum_slice<T, S>(t: &[T]) -> &[T]
+where
+    T: AsSqlType<SqlType = S>,
+{
+    t
+}
+
 pub struct Valid<'a, B: 'a + ?Sized, O = B>(PhantomData<(&'a B, O)>);
 
 impl<'a, T> From<&'a T> for Valid<'a, T, T> {

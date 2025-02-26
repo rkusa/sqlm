@@ -32,3 +32,15 @@ async fn test_option_param_str() {
         .unwrap();
     assert_eq!(id, 1);
 }
+
+#[tokio::test]
+async fn test_option_param_deref() {
+    let name = Some(String::from("first"));
+    let id: i64 = sql!(
+        "SELECT id FROM users WHERE name = {name}",
+        name = name.as_deref()
+    )
+    .await
+    .unwrap();
+    assert_eq!(id, 1);
+}

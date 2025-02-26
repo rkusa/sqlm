@@ -219,28 +219,15 @@ pub fn sql(item: TokenStream) -> TokenStream {
             }
 
             let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
-            let type_check = if is_array {
-                quote! {
-                    {
-                        const fn assert_type<T: ::sqlm_postgres::internal::AsSqlType<SqlType = #enum_struct>>(_: &[T]) {}
-                        assert_type(&(#param));
-                    }
-                }
+            if is_array {
+                typed_parameters.push(quote! {
+                    ::sqlm_postgres::internal::assert_type_enum_slice::<_, #enum_struct>(&#param)
+                });
             } else {
-                quote! {
-                    {
-                        const fn assert_type<T: ::sqlm_postgres::internal::AsSqlType<SqlType = #enum_struct>>(_: &T) {}
-                        assert_type(&(#param));
-                    }
-                }
-            };
-
-            typed_parameters.push(quote! {
-                {
-                    #type_check
-                    (#param)
-                }
-            });
+                typed_parameters.push(quote! {
+                    ::sqlm_postgres::internal::assert_type_enum::<_, #enum_struct>(&#param)
+                });
+            }
             continue;
         }
 
@@ -253,19 +240,8 @@ pub fn sql(item: TokenStream) -> TokenStream {
             .into();
         };
 
-        // `Option::from` is used to allow parameters to be an Option
         typed_parameters.push(quote! {
-            {
-                {
-                    const fn assert_type<T, S>(_: &T)
-                    where
-                        T: ::sqlm_postgres::internal::AsSqlType<SqlType = S>,
-                        for<'a> ::sqlm_postgres::internal::Valid<'a, #ty_borrowed, #ty_owned>: From<S>
-                    {}
-                    assert_type(&(#param));
-                }
-                &(#param)
-            }
+            ::sqlm_postgres::internal::assert_type::<_, _, #ty_borrowed, #ty_owned>(&(#param))
         });
     }
 
