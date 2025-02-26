@@ -1,4 +1,4 @@
-#![cfg_attr(nightly_column_names, feature(adt_const_params))]
+#![cfg_attr(nightly_column_names, feature(adt_const_params, unsized_const_params))]
 #![cfg_attr(nightly_column_names, allow(incomplete_features))]
 #![forbid(unsafe_code)]
 
