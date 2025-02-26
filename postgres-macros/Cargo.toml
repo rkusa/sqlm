@@ -17,8 +17,8 @@ time = ["dep:time", "postgres/with-time-0_3"]
 uuid = ["dep:uuid", "postgres/with-uuid-1"]
 
 [dependencies]
-ariadne = "0.4"
-chumsky = "1.0.0-alpha.7"
+ariadne = "0.5"
+chumsky = "1.0.0-alpha.8"
 dotenvy = "0.15"
 heck = "0.5"
 pgvector = { version = "0.4", features = ["postgres"], optional = true }

@@ -7,7 +7,7 @@ pub fn parse(input: &str) -> Result<Vec<Token<'_>>, Rich<'_, char>> {
         Ok(tokens) => Ok(tokens),
         Err(errors) => {
             let err = errors.into_iter().next().unwrap();
-            Report::build(ReportKind::Error, (), err.span().start)
+            Report::build(ReportKind::Error, err.span().into_range())
                 .with_message(err.to_string())
                 .with_label(
                     Label::new(err.span().into_range())
