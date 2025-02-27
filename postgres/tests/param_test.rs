@@ -44,3 +44,21 @@ async fn test_option_param_deref() {
     .unwrap();
     assert_eq!(id, 1);
 }
+
+#[tokio::test]
+async fn test_param_vec() {
+    let ids = vec![100i64, 1];
+    let id: i64 = sql!("SELECT id FROM users WHERE id = ANY({ids}) LIMIT 1")
+        .await
+        .unwrap();
+    assert_eq!(id, 1);
+}
+
+#[tokio::test]
+async fn test_param_option_vec() {
+    let ids = Some(vec![100i64, 1]);
+    let id: i64 = sql!("SELECT id FROM users WHERE id = ANY({ids}) LIMIT 1")
+        .await
+        .unwrap();
+    assert_eq!(id, 1);
+}
