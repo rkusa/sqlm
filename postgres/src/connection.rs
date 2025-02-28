@@ -7,8 +7,13 @@ use deadpool_postgres::GenericClient;
 use tokio_postgres::Row;
 use tokio_postgres::types::ToSql;
 
-use crate::Error;
-use crate::error::ErrorKind;
+use crate::error::{Error, ErrorKind};
+
+/// A database transaction.
+pub struct Transaction<'t>(pub(crate) deadpool_postgres::Transaction<'t>);
+
+/// An asynchronous PostgreSQL client (basically a non-transactional connection).
+pub struct Session(pub(crate) deadpool_postgres::Client);
 
 /// A trait used to allow functions to accept connections without having to explicit about whether
 /// it's a transaction or not.
@@ -46,6 +51,34 @@ pub trait Connection: Send + Sync {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<(), Error>> + Send + 'a;
+}
+
+impl Session {
+    pub fn into_inner(self) -> deadpool_postgres::Client {
+        self.0
+    }
+
+    pub async fn transaction(&mut self) -> Result<Transaction<'_>, Error> {
+        self.0
+            .transaction()
+            .await
+            .map(Transaction)
+            .map_err(Error::from)
+    }
+}
+
+impl<'t> Transaction<'t> {
+    pub fn into_inner(self) -> deadpool_postgres::Transaction<'t> {
+        self.0
+    }
+
+    pub async fn commit(self) -> Result<(), Error> {
+        self.0.commit().await.map_err(Error::from)
+    }
+
+    pub async fn rollback(self) -> Result<(), Error> {
+        self.0.rollback().await.map_err(Error::from)
+    }
 }
 
 impl Connection for deadpool_postgres::Client {
@@ -256,6 +289,74 @@ impl Connection for deadpool_postgres::Transaction<'_> {
                 }
             }
         }
+    }
+}
+
+impl Connection for Session {
+    fn query_one<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Row, Error>> + Send + 'a {
+        Connection::query_one(&self.0, query, parameters)
+    }
+
+    fn query_opt<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Option<Row>, Error>> + Send + 'a {
+        Connection::query_opt(&self.0, query, parameters)
+    }
+
+    fn query<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Vec<Row>, Error>> + Send + 'a {
+        Connection::query(&self.0, query, parameters)
+    }
+
+    fn execute<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        Connection::execute(&self.0, query, parameters)
+    }
+}
+
+impl Connection for Transaction<'_> {
+    fn query_one<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Row, Error>> + Send + 'a {
+        Connection::query_one(&self.0, query, parameters)
+    }
+
+    fn query_opt<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Option<Row>, Error>> + Send + 'a {
+        Connection::query_opt(&self.0, query, parameters)
+    }
+
+    fn query<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<Vec<Row>, Error>> + Send + 'a {
+        Connection::query(&self.0, query, parameters)
+    }
+
+    fn execute<'a>(
+        &'a self,
+        query: &'a str,
+        parameters: &'a [&'a (dyn ToSql + Sync)],
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        Connection::execute(&self.0, query, parameters)
     }
 }
 

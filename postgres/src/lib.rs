@@ -69,7 +69,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub use connection::Connection;
+pub use connection::{Connection, Session, Transaction};
 use deadpool_postgres::{ClientWrapper, Manager, ManagerConfig, Pool, RecyclingMethod};
 pub use error::Error;
 use error::ErrorKind;
@@ -85,12 +85,6 @@ pub use tokio_postgres::types::{FromSql, ToSql};
 pub use types::SqlType;
 
 static POOL: OnceCell<Pool> = OnceCell::new();
-
-/// A database transaction.
-pub type Transaction<'t> = deadpool_postgres::Transaction<'t>;
-
-/// An asynchronous PostgreSQL client (basically a non-transactional connection).
-pub type Client = deadpool_postgres::Client;
 
 /// Establish a database connection.
 ///
@@ -127,7 +121,7 @@ pub type Client = deadpool_postgres::Client;
 /// # }
 /// ```
 #[tracing::instrument]
-pub async fn connect() -> Result<Client, Error> {
+pub async fn connect() -> Result<Session, Error> {
     // Don't trace connect, as this would create an endless loop of connecting again and
     // again when persisting the connect trace!
     let pool = POOL.get_or_try_init(|| {
@@ -166,7 +160,7 @@ pub async fn connect() -> Result<Client, Error> {
         Ok::<_, Error>(pool)
     })?;
     let conn = pool.get().await?;
-    Ok(conn)
+    Ok(Session(conn))
 }
 
 /// The struct created by [`sql!`]; executed by calling `.await`.
