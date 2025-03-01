@@ -1,4 +1,4 @@
-use std::future::{Future, IntoFuture};
+use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -10,7 +10,8 @@ use crate::error::ErrorKind;
 use crate::query::Query;
 use crate::{Error, Sql};
 
-impl<'a, Cols, T> IntoFuture for Sql<'a, Cols, T>
+#[cfg(feature = "global_pool")]
+impl<'a, Cols, T> std::future::IntoFuture for Sql<'a, Cols, T>
 where
     T: Query<Cols> + Send + Sync + 'a,
     Cols: Send + Sync + 'a,
@@ -30,6 +31,7 @@ pub struct SqlFuture<'a, T> {
 }
 
 impl<'a, T> SqlFuture<'a, T> {
+    #[cfg(feature = "global_pool")]
     pub(crate) fn new<Cols>(sql: Sql<'a, Cols, T>) -> Self
     where
         T: Query<Cols> + Send + Sync + 'a,
