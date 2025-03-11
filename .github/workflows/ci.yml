@@ -54,8 +54,11 @@ jobs:
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
 
-      - name: Test
-        run: cargo hack test --workspace --feature-powerset --depth 2
+      - name: Test sqlm-postgres
+        run: cargo hack test -p sqlm-postgres --features global_pool --feature-powerset --depth 2
+
+      - name: Test sqlm-postgres-macros
+        run: cargo hack test -p sqlm-postgres-macros --feature-powerset --depth 2
 
       - name: Clippy
         run: cargo hack check --workspace --feature-powerset --depth 1
