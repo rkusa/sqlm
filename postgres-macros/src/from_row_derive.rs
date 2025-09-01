@@ -110,10 +110,10 @@ pub(crate) fn extract_inner_type(ty: &Type) -> syn::Result<(&Type, Kind)> {
             return Ok((ty, Kind::Other));
         }
 
-        if let PathArguments::AngleBracketed(args) = &segment.arguments {
-            if let Some(syn::GenericArgument::Type(t)) = args.args.first() {
-                return Ok((t, Kind::Option));
-            }
+        if let PathArguments::AngleBracketed(args) = &segment.arguments
+            && let Some(syn::GenericArgument::Type(t)) = args.args.first()
+        {
+            return Ok((t, Kind::Option));
         }
     }
 
