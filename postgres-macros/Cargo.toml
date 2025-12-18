@@ -17,7 +17,7 @@ time = ["dep:time", "postgres/with-time-0_3"]
 uuid = ["dep:uuid", "postgres/with-uuid-1"]
 
 [dependencies]
-ariadne = "0.5"
+ariadne = "0.6"
 chumsky = "1.0.0-alpha.8"
 dotenvy = "0.15"
 heck = "0.5"
