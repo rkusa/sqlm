@@ -65,6 +65,10 @@ impl Session {
             .map(Transaction)
             .map_err(Error::from)
     }
+
+    pub fn metrics(&self) -> &deadpool_postgres::Metrics {
+        deadpool_postgres::Object::metrics(&self.0)
+    }
 }
 
 impl<'t> Transaction<'t> {
