@@ -203,9 +203,15 @@ pub fn sql(item: TokenStream) -> TokenStream {
     let stmt = match client.prepare(&result) {
         Ok(stmt) => stmt,
         Err(err) => {
-            return syn::Error::new(input.query.span(), format!("query failed: {err}"))
-                .into_compile_error()
-                .into();
+            if let Some(db_error) = err.as_db_error() {
+                return syn::Error::new(input.query.span(), format!("query failed: {db_error}"))
+                    .into_compile_error()
+                    .into();
+            } else {
+                return syn::Error::new(input.query.span(), format!("query failed: {err}"))
+                    .into_compile_error()
+                    .into();
+            }
         }
     };
 
