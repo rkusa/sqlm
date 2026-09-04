@@ -4,4 +4,4 @@ error[E0271]: type mismatch resolving `<OffsetDateTime as SqlType>::Type == Date
 5 |     let _: time::OffsetDateTime = sql!("SELECT NOW()::DATE").await.unwrap();
   |                                                              ^^^^^ expected `Date`, found `OffsetDateTime`
   |
-  = note: required for `Sql<'_, Primitive<time::Date>, OffsetDateTime>` to implement `IntoFuture`
+  = note: required for `Sql<'_, sqlm_postgres::types::Primitive<time::Date>, OffsetDateTime>` to implement `IntoFuture`

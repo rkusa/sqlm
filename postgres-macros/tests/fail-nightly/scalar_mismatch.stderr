@@ -4,4 +4,4 @@ error[E0271]: type mismatch resolving `<String as SqlType>::Type == i64`
 5 |     let _: String = sql!("SELECT COUNT(*) FROM users").await.unwrap();
   |                                                        ^^^^^ expected `i64`, found `String`
   |
-  = note: required for `Sql<'_, Primitive<i64>, String>` to implement `IntoFuture`
+  = note: required for `Sql<'_, sqlm_postgres::types::Primitive<i64>, String>` to implement `IntoFuture`

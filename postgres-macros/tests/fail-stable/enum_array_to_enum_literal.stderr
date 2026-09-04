@@ -1,21 +1,25 @@
-error[E0277]: the trait bound `Role: sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not satisfied
+error[E0277]: the trait bound `Role: sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(sqlm_postgres::types::EnumVariant<5755620910692865178>, sqlm_postgres::types::EnumVariant<10465144470622129318>)>>>>` is not satisfied
   --> tests/fail-stable/enum_array_to_enum_literal.rs:17:10
    |
 17 |         .await
    |          ^^^^^ unsatisfied trait bound
    |
-   = help: the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>>` is not implemented for `Role`
+help: the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(sqlm_postgres::types::EnumVariant<5755620910692865178>, sqlm_postgres::types::EnumVariant<10465144470622129318>)>>>>` is not implemented for `Role`
+  --> tests/fail-stable/enum_array_to_enum_literal.rs:6:1
+   |
+ 6 | enum Role {
+   | ^^^^^^^^^
    = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
              `()` implements `sqlm_postgres::query::Query<()>`
-             `Option<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
-             `Option<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`
-             `Option<Vec<u8>>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
-             `Vec<T>` implements `sqlm_postgres::query::Query<Primitive<<T as SqlType>::Type>>`
-             `Vec<T>` implements `sqlm_postgres::query::Query<Struct<Cols>>`
+             `Option<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<<T as SqlType>::Type>>`
+             `Option<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Struct<Cols>>`
+             `Option<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<sqlm_postgres::types::Bytea>>`
              `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>`
-             `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<Primitive<Bytea>>`
+             `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<<T as SqlType>::Type>>`
+             `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Struct<Cols>>`
+             `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Bytea>>>`
            and $N others
-   = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(EnumVariant<5755620910692865178>, EnumVariant<10465144470622129318>)>>>, Role>` to implement `IntoFuture`
+   = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Enum<(sqlm_postgres::types::EnumVariant<5755620910692865178>, sqlm_postgres::types::EnumVariant<10465144470622129318>)>>>, Role>` to implement `IntoFuture`
 help: remove the `.await`
    |
 17 -         .await
