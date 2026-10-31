@@ -36,11 +36,8 @@ jobs:
       DATABASE_URL: postgresql://sqlm-test:sqlm-test@localhost/sqlm-test
 
     steps:
-      - name: Add build dependencies
-        run: sudo apt-get install libpq-dev libudev-dev
-
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Populate test database
         run: psql $DATABASE_URL < postgres/testdb.sql
@@ -60,7 +57,7 @@ jobs:
       - name: Test sqlm-postgres-macros
         run: cargo hack test -p sqlm-postgres-macros --feature-powerset --depth 2
 
-      - name: Clippy
+      - name: Check feature combinations
         run: cargo hack check --workspace --feature-powerset --depth 1
 
       - name: Fmt
