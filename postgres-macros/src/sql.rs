@@ -257,8 +257,6 @@ pub fn sql(item: TokenStream) -> TokenStream {
             ::sqlm_postgres::Sql::<'_, (), ()> {
                 query: #result,
                 parameters: &[#(&(#typed_parameters),)*],
-                transaction: None,
-                connection: None,
                 marker: ::std::marker::PhantomData,
             }
         }
@@ -282,8 +280,6 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 ::sqlm_postgres::Sql::<'_, #enum_struct, _> {
                     query: #result,
                     parameters: &[#(&(#typed_parameters),)*],
-                    transaction: None,
-                    connection: None,
                     marker: ::std::marker::PhantomData,
                 }
             }
@@ -294,8 +290,6 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
-                        transaction: None,
-                        connection: None,
                         marker: ::std::marker::PhantomData,
                     }
                 }
@@ -305,8 +299,6 @@ pub fn sql(item: TokenStream) -> TokenStream {
                     ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
                         query: #result,
                         parameters: &[#(&(#typed_parameters),)*],
-                        transaction: None,
-                        connection: None,
                         marker: ::std::marker::PhantomData,
                     }
                 }
@@ -358,8 +350,6 @@ pub fn sql(item: TokenStream) -> TokenStream {
         ::sqlm_postgres::Sql::<'_, #type_struct, _> {
             query: #result,
             parameters: &[#(&(#typed_parameters),)*],
-            transaction: None,
-            connection: None,
             marker: ::std::marker::PhantomData,
         }
     }

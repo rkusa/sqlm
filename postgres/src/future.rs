@@ -1,11 +1,11 @@
 use std::future::Future;
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Instant;
 
 use tracing::Instrument;
 
+#[cfg(feature = "global_pool")]
 use crate::error::ErrorKind;
 use crate::query::Query;
 use crate::{Error, Sql};
@@ -27,7 +27,6 @@ where
 /// A future for executing an sql query.
 pub struct SqlFuture<'a, T> {
     future: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>,
-    marker: PhantomData<&'a ()>,
 }
 
 impl<'a, T> SqlFuture<'a, T> {
@@ -43,7 +42,6 @@ impl<'a, T> SqlFuture<'a, T> {
 
         SqlFuture {
             future: Box::pin(
-                // Note: changes here must be applied to `with_connection` below too!
                 async move {
                     let mut i = 1;
                     loop {
@@ -72,7 +70,6 @@ impl<'a, T> SqlFuture<'a, T> {
                 }
                 .instrument(span),
             ),
-            marker: PhantomData,
         }
     }
 
@@ -90,35 +87,16 @@ impl<'a, T> SqlFuture<'a, T> {
 
         SqlFuture {
             future: Box::pin(
-                // Note: changes here must be applied to `bew` above too!
+                // Unlike `new`, no retry on closed connections here: the caller owns the
+                // connection, so retrying would just re-run the query on the same dead one.
                 async move {
-                    let mut i = 1;
-                    loop {
-                        match T::query(&sql, &conn).await {
-                            Ok(r) => {
-                                let elapsed = start.elapsed();
-                                tracing::trace!(?elapsed, "sql query finished");
-                                return Ok(r);
-                            }
-                            Err(Error {
-                                kind: ErrorKind::Postgres(err),
-                                ..
-                            }) if err.is_closed() && i <= 5 => {
-                                // retry pool size + 1 times if connection is closed (might have
-                                // received a closed one from the connection pool)
-                                i += 1;
-                                tracing::trace!("retry due to connection closed error");
-                                continue;
-                            }
-                            Err(err) => {
-                                return Err(err);
-                            }
-                        }
-                    }
+                    let r = T::query(&sql, &conn).await?;
+                    let elapsed = start.elapsed();
+                    tracing::trace!(?elapsed, "sql query finished");
+                    Ok(r)
                 }
                 .instrument(span),
             ),
-            marker: PhantomData,
         }
     }
 }

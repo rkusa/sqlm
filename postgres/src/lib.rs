@@ -43,7 +43,9 @@
 //!   created for you)
 //!
 //! # Caveats
-//! - Automatically creates a global connection pool for you with no way to opt out
+//! - Automatically creates a global connection pool for you (disable the `global_pool` feature to
+//!   opt out; queries then have to be executed via [`Sql::run_with`] on a manually created
+//!   [`pool::Pool`])
 //! - Compile-time checks cannot be disabled. Thus also requires database access on your CI.
 //! - Does not know whether rows returned from Postgres are nullable and consequentially
 //!   requires all types to implement [`Default::default`], which it falls back to if Postgres
@@ -68,7 +70,6 @@ pub mod types;
 use std::marker::PhantomData;
 
 pub use connection::{Connection, Session, Transaction};
-use deadpool_postgres::ClientWrapper;
 pub use error::Error;
 pub use future::SqlFuture;
 pub use macros::{Enum, FromRow, sql};
@@ -131,10 +132,6 @@ pub struct Sql<'a, Cols, T> {
     pub query: &'static str,
     #[doc(hidden)]
     pub parameters: &'a [&'a (dyn ToSql + Sync)],
-    #[doc(hidden)]
-    pub transaction: Option<&'a Transaction<'a>>,
-    #[doc(hidden)]
-    pub connection: Option<&'a ClientWrapper>,
     #[doc(hidden)]
     pub marker: PhantomData<(Cols, T)>,
 }

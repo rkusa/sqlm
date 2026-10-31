@@ -3,11 +3,10 @@
 
 use std::future::Future;
 
-use deadpool_postgres::GenericClient;
 use tokio_postgres::Row;
 use tokio_postgres::types::ToSql;
 
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 
 /// A database transaction.
 pub struct Transaction<'t>(pub(crate) deadpool_postgres::Transaction<'t>);
@@ -85,31 +84,110 @@ impl<'t> Transaction<'t> {
     }
 }
 
+/// Query execution via deadpool's statement cache, shared by the pooled client and transaction.
+mod cached {
+    use std::future::Future;
+
+    use deadpool_postgres::{GenericClient, StatementCache};
+    use tokio_postgres::types::ToSql;
+    use tokio_postgres::{Row, Statement};
+
+    use crate::error::{Error, ErrorKind};
+
+    /// A pooled client or transaction that caches prepared statements.
+    pub(super) trait CachedClient: GenericClient {
+        fn statement_cache(&self) -> &StatementCache;
+    }
+
+    impl CachedClient for deadpool_postgres::Client {
+        fn statement_cache(&self) -> &StatementCache {
+            &self.statement_cache
+        }
+    }
+
+    impl CachedClient for deadpool_postgres::Transaction<'_> {
+        fn statement_cache(&self) -> &StatementCache {
+            &self.statement_cache
+        }
+    }
+
+    /// Prepares `query` via the statement cache and runs `f` with the resulting statement. If
+    /// Postgres rejects the cached statement as stale (e.g. after a schema change), the cache is
+    /// cleared and the query is prepared and run once more.
+    async fn with_statement<C, F, Fut, R>(client: &C, query: &str, f: F) -> Result<R, Error>
+    where
+        C: CachedClient,
+        F: Fn(Statement) -> Fut,
+        Fut: Future<Output = Result<R, tokio_postgres::Error>>,
+    {
+        let stmt = client.prepare_cached(query).await?;
+        match f(stmt).await {
+            Err(err)
+                if err
+                    .as_db_error()
+                    .is_some_and(|err| err.routine() == Some("RevalidateCachedQuery")) =>
+            {
+                tracing::warn!(%err, "clearing statement cache");
+                client.statement_cache().clear();
+                let stmt = client.prepare_cached(query).await?;
+                Ok(f(stmt).await?)
+            }
+            result => Ok(result?),
+        }
+    }
+
+    pub(super) async fn query_one<C: CachedClient>(
+        client: &C,
+        query: &str,
+        parameters: &[&(dyn ToSql + Sync)],
+    ) -> Result<Row, Error> {
+        query_opt(client, query, parameters)
+            .await?
+            .ok_or_else(|| ErrorKind::RowNotFound.into())
+    }
+
+    pub(super) async fn query_opt<C: CachedClient>(
+        client: &C,
+        query: &str,
+        parameters: &[&(dyn ToSql + Sync)],
+    ) -> Result<Option<Row>, Error> {
+        with_statement(client, query, |stmt| async move {
+            client.query_opt(&stmt, parameters).await
+        })
+        .await
+    }
+
+    pub(super) async fn query<C: CachedClient>(
+        client: &C,
+        query: &str,
+        parameters: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<Row>, Error> {
+        with_statement(client, query, |stmt| async move {
+            client.query(&stmt, parameters).await
+        })
+        .await
+    }
+
+    pub(super) async fn execute<C: CachedClient>(
+        client: &C,
+        query: &str,
+        parameters: &[&(dyn ToSql + Sync)],
+    ) -> Result<(), Error> {
+        with_statement(client, query, |stmt| async move {
+            client.execute(&stmt, parameters).await
+        })
+        .await?;
+        Ok(())
+    }
+}
+
 impl Connection for deadpool_postgres::Client {
     fn query_one<'a>(
         &'a self,
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Row, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Client::query_one(self, &stmt, parameters).await {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return Ok(
-                            tokio_postgres::Client::query_one(self, &stmt, parameters).await?
-                        );
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query_one(self, query, parameters)
     }
 
     fn query_opt<'a>(
@@ -117,25 +195,7 @@ impl Connection for deadpool_postgres::Client {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Option<Row>, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Client::query_opt(self, &stmt, parameters).await {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return Ok(
-                            tokio_postgres::Client::query_opt(self, &stmt, parameters).await?
-                        );
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query_opt(self, query, parameters)
     }
 
     fn query<'a>(
@@ -143,23 +203,7 @@ impl Connection for deadpool_postgres::Client {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Vec<Row>, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Client::query(self, &stmt, parameters).await {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return Ok(tokio_postgres::Client::query(self, &stmt, parameters).await?);
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query(self, query, parameters)
     }
 
     fn execute<'a>(
@@ -167,24 +211,7 @@ impl Connection for deadpool_postgres::Client {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Client::execute(self, &stmt, parameters).await {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        tokio_postgres::Client::execute(self, &stmt, parameters).await?;
-                        return Ok(());
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::execute(self, query, parameters)
     }
 }
 
@@ -194,25 +221,7 @@ impl Connection for deadpool_postgres::Transaction<'_> {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Row, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Transaction::query_opt(self, &stmt, parameters).await {
-                Ok(result) => result.ok_or_else(|| ErrorKind::RowNotFound.into()),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return tokio_postgres::Transaction::query_opt(self, &stmt, parameters)
-                            .await?
-                            .ok_or_else(|| ErrorKind::RowNotFound.into());
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query_one(self, query, parameters)
     }
 
     fn query_opt<'a>(
@@ -220,25 +229,7 @@ impl Connection for deadpool_postgres::Transaction<'_> {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Option<Row>, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Transaction::query_opt(self, &stmt, parameters).await {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return Ok(
-                            tokio_postgres::Transaction::query_opt(self, &stmt, parameters).await?,
-                        );
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query_opt(self, query, parameters)
     }
 
     fn query<'a>(
@@ -246,25 +237,7 @@ impl Connection for deadpool_postgres::Transaction<'_> {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<Vec<Row>, Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Transaction::query(self, &stmt, parameters).await {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        return Ok(
-                            tokio_postgres::Transaction::query(self, &stmt, parameters).await?
-                        );
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::query(self, query, parameters)
     }
 
     fn execute<'a>(
@@ -272,24 +245,7 @@ impl Connection for deadpool_postgres::Transaction<'_> {
         query: &'a str,
         parameters: &'a [&'a (dyn ToSql + Sync)],
     ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
-        async move {
-            let stmt = self.prepare_cached(query).await?;
-            match tokio_postgres::Transaction::execute(self, &stmt, parameters).await {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    if let Some(err) = err.as_db_error()
-                        && err.routine() == Some("RevalidateCachedQuery")
-                    {
-                        tracing::warn!(%err, "clearing statement cache");
-                        self.statement_cache.clear();
-                        let stmt = self.prepare_cached(query).await?;
-                        tokio_postgres::Transaction::execute(self, &stmt, parameters).await?;
-                        return Ok(());
-                    }
-                    Err(err.into())
-                }
-            }
-        }
+        cached::execute(self, query, parameters)
     }
 }
 
