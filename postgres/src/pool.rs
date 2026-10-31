@@ -14,7 +14,9 @@ pub struct Pool(deadpool_postgres::Pool);
 impl Pool {
     pub fn new(database_url: &str, pool_size: usize) -> Result<Self, Error> {
         let mut config = tokio_postgres::Config::from_str(database_url)?;
-        config.application_name(env!("CARGO_PKG_NAME"));
+        if config.get_application_name().is_none() {
+            config.application_name(env!("CARGO_PKG_NAME"));
+        }
 
         // TODO: take all possible SSL variants into account, see e.g.
         // https://github.com/jbg/tokio-postgres-rustls/issues/11
@@ -28,13 +30,7 @@ impl Pool {
             ),
             _ => Manager::from_config(
                 config,
-                {
-                    let config = rustls::ClientConfig::builder()
-                        .dangerous()
-                        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify::default()))
-                        .with_no_client_auth();
-                    tokio_postgres_rustls::MakeRustlsConnect::new(config)
-                },
+                tokio_postgres_rustls::MakeRustlsConnect::new(tls_config()),
                 ManagerConfig {
                     recycling_method: RecyclingMethod::Fast,
                 },
@@ -64,20 +60,23 @@ impl Pool {
     }
 }
 
+/// A TLS config that encrypts the connection but does not verify the server certificate. Uses the
+/// process-wide default crypto provider if one is installed and falls back to `ring` otherwise.
+fn tls_config() -> rustls::ClientConfig {
+    let crypto_provider = rustls::crypto::CryptoProvider::get_default()
+        .cloned()
+        .unwrap_or_else(|| Arc::new(rustls::crypto::ring::default_provider()));
+    rustls::ClientConfig::builder_with_provider(Arc::clone(&crypto_provider))
+        .with_safe_default_protocol_versions()
+        .expect("crypto provider supports the default TLS protocol versions")
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify { crypto_provider }))
+        .with_no_client_auth()
+}
+
 #[derive(Debug)]
 struct NoServerCertVerify {
     crypto_provider: Arc<rustls::crypto::CryptoProvider>,
-}
-
-impl Default for NoServerCertVerify {
-    fn default() -> Self {
-        Self {
-            crypto_provider: Arc::clone(
-                rustls::crypto::CryptoProvider::get_default()
-                    .expect("no default provider for rustls installed"),
-            ),
-        }
-    }
 }
 
 impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {

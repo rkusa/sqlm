@@ -180,13 +180,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
     // https://github.com/jbg/tokio-postgres-rustls/issues/11
     let client = match config.get_ssl_mode() {
         SslMode::Disable => config.connect(postgres::NoTls),
-        _ => {
-            let client_config = rustls::ClientConfig::builder()
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(NoServerCertVerify::default()))
-                .with_no_client_auth();
-            config.connect(tokio_postgres_rustls::MakeRustlsConnect::new(client_config))
-        }
+        _ => config.connect(tokio_postgres_rustls::MakeRustlsConnect::new(tls_config())),
     };
     let mut client = match client {
         Ok(client) => client,
@@ -479,20 +473,23 @@ impl Parse for Input {
     }
 }
 
+/// A TLS config that encrypts the connection but does not verify the server certificate. Uses the
+/// process-wide default crypto provider if one is installed and falls back to `ring` otherwise.
+fn tls_config() -> rustls::ClientConfig {
+    let crypto_provider = rustls::crypto::CryptoProvider::get_default()
+        .cloned()
+        .unwrap_or_else(|| Arc::new(rustls::crypto::ring::default_provider()));
+    rustls::ClientConfig::builder_with_provider(Arc::clone(&crypto_provider))
+        .with_safe_default_protocol_versions()
+        .expect("crypto provider supports the default TLS protocol versions")
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoServerCertVerify { crypto_provider }))
+        .with_no_client_auth()
+}
+
 #[derive(Debug)]
 struct NoServerCertVerify {
     crypto_provider: Arc<rustls::crypto::CryptoProvider>,
-}
-
-impl Default for NoServerCertVerify {
-    fn default() -> Self {
-        Self {
-            crypto_provider: Arc::clone(
-                rustls::crypto::CryptoProvider::get_default()
-                    .expect("no default provider for rustls installed"),
-            ),
-        }
-    }
 }
 
 impl rustls::client::danger::ServerCertVerifier for NoServerCertVerify {
