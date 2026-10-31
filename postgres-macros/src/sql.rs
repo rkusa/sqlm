@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::Write;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use postgres::Config;
 use postgres::config::SslMode;
+use postgres::{Client, Config, Statement};
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::parse::{Parse, ParseStream};
@@ -156,56 +156,12 @@ pub fn sql(item: TokenStream) -> TokenStream {
         }
     }
 
-    let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
-        return syn::Error::new(
-            input.query.span(),
-            "compile-time query checks require DATABASE_URL environment variable to be defined",
-        )
-        .into_compile_error()
-        .into();
-    };
-    let config = match Config::from_str(&database_url) {
-        Ok(config) => config,
-        Err(err) => {
-            return syn::Error::new(
-                input.query.span(),
-                format!("failed to parse connection config from DATABASE_URL: {err}"),
-            )
-            .into_compile_error()
-            .into();
-        }
-    };
-
-    // TODO: take all possible SSL variants into account, see e.g.
-    // https://github.com/jbg/tokio-postgres-rustls/issues/11
-    let client = match config.get_ssl_mode() {
-        SslMode::Disable => config.connect(postgres::NoTls),
-        _ => config.connect(tokio_postgres_rustls::MakeRustlsConnect::new(tls_config())),
-    };
-    let mut client = match client {
-        Ok(client) => client,
-        Err(err) => {
-            return syn::Error::new(
-                input.query.span(),
-                format!("failed to connect to postgres (using DATABASE_URL): {err}"),
-            )
-            .into_compile_error()
-            .into();
-        }
-    };
-
-    let stmt = match client.prepare(&result) {
+    let stmt = match prepare(&result) {
         Ok(stmt) => stmt,
         Err(err) => {
-            if let Some(db_error) = err.as_db_error() {
-                return syn::Error::new(input.query.span(), format!("query failed: {db_error}"))
-                    .into_compile_error()
-                    .into();
-            } else {
-                return syn::Error::new(input.query.span(), format!("query failed: {err}"))
-                    .into_compile_error()
-                    .into();
-            }
+            return syn::Error::new(input.query.span(), err)
+                .into_compile_error()
+                .into();
         }
     };
 
@@ -471,6 +427,75 @@ impl Parse for Input {
                 .transpose()?,
         })
     }
+}
+
+/// The database connection shared by all `sql!` invocations within one compiler process, so that
+/// not every single query has to establish a new connection.
+static CLIENT: Mutex<Option<CachedClient>> = Mutex::new(None);
+
+struct CachedClient {
+    database_url: String,
+    client: Client,
+}
+
+/// Prepares `query` on the cached connection (connecting first if necessary) to retrieve its
+/// parameter and column types. Errors are returned as messages ready to be reported at the query.
+fn prepare(query: &str) -> Result<Statement, String> {
+    let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
+        return Err(
+            "compile-time query checks require DATABASE_URL environment variable to be defined"
+                .to_string(),
+        );
+    };
+
+    let mut cached = CLIENT.lock().unwrap_or_else(PoisonError::into_inner);
+    // Drop a cached connection that got closed or that belongs to a different database.
+    if cached
+        .as_ref()
+        .is_some_and(|c| c.database_url != database_url || c.client.is_closed())
+    {
+        *cached = None;
+    }
+    if cached.is_none() {
+        *cached = Some(CachedClient {
+            client: connect(&database_url)?,
+            database_url,
+        });
+    }
+    let cached = cached.as_mut().unwrap();
+
+    match cached.client.prepare(query) {
+        Err(err) if err.is_closed() => {
+            // The connection died since it was last used, e.g. due to a server-side timeout.
+            cached.client = connect(&cached.database_url)?;
+            cached.client.prepare(query).map_err(prepare_error)
+        }
+        result => result.map_err(prepare_error),
+    }
+}
+
+fn prepare_error(err: postgres::Error) -> String {
+    if let Some(db_error) = err.as_db_error() {
+        format!("query failed: {db_error}")
+    } else {
+        format!("query failed: {err}")
+    }
+}
+
+fn connect(database_url: &str) -> Result<Client, String> {
+    let mut config = Config::from_str(database_url)
+        .map_err(|err| format!("failed to parse connection config from DATABASE_URL: {err}"))?;
+    if config.get_application_name().is_none() {
+        config.application_name(env!("CARGO_PKG_NAME"));
+    }
+
+    // TODO: take all possible SSL variants into account, see e.g.
+    // https://github.com/jbg/tokio-postgres-rustls/issues/11
+    let client = match config.get_ssl_mode() {
+        SslMode::Disable => config.connect(postgres::NoTls),
+        _ => config.connect(tokio_postgres_rustls::MakeRustlsConnect::new(tls_config())),
+    };
+    client.map_err(|err| format!("failed to connect to postgres (using DATABASE_URL): {err}"))
 }
 
 /// A TLS config that encrypts the connection but does not verify the server certificate. Uses the
