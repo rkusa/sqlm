@@ -50,6 +50,9 @@
 //! - Does not know whether rows returned from Postgres are nullable and consequentially
 //!   requires all types to implement [`Default::default`], which it falls back to if Postgres
 //!   returns null.
+//! - Emits `tracing` spans for connecting and for every query. A subscriber that persists traces
+//!   through sqlm itself must filter these out (target `sqlm_postgres`), otherwise persisting a
+//!   span runs a query, which emits a span, which gets persisted, ... endlessly.
 
 // Necessary to have `::sqlm_postgres::` available in tests
 #[cfg(test)]
@@ -119,8 +122,6 @@ static POOL: once_cell::sync::OnceCell<pool::Pool> = once_cell::sync::OnceCell::
 #[cfg(feature = "global_pool")]
 #[tracing::instrument]
 pub async fn connect() -> Result<Session, Error> {
-    // Don't trace connect, as this would create an endless loop of connecting again and
-    // again when persisting the connect trace!
     let pool = POOL.get_or_try_init(|| pool::Pool::from_env(4))?;
     pool.connect().await
 }

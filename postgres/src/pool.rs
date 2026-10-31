@@ -53,8 +53,6 @@ impl Pool {
 
     #[tracing::instrument(skip_all)]
     pub async fn connect(&self) -> Result<Session, Error> {
-        // Don't trace connect, as this would create an endless loop of connecting again and
-        // again when persisting the connect trace!
         let conn = self.0.get().await?;
         Ok(Session(conn))
     }
