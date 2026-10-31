@@ -27,8 +27,6 @@ pub fn expand_derive_enum(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let opts = extract_options(&attrs)?;
 
-    let mut new_generics = generics.clone();
-    new_generics.params.push(parse_quote!(Cols));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut variants = variants
@@ -79,10 +77,7 @@ fn extract_options(attrs: &[Attribute]) -> Result<Options, Error> {
         for opt in attr.parse_args_with(Punctuated::<OptionExpr, token::Comma>::parse_terminated)? {
             if opt.key.is_ident("rename_all") {
                 let Some(value) = opt.value else {
-                    return Err(Error::new_spanned(
-                        opt.value,
-                        "rename_all must have a value",
-                    ));
+                    return Err(Error::new_spanned(opt.key, "rename_all must have a value"));
                 };
 
                 let Ok(rename_all) = RenameAll::from_str(&value.value()) else {
@@ -115,7 +110,7 @@ fn extract_variant_options(attrs: &[Attribute]) -> Result<VariantOptions, Error>
         for opt in attr.parse_args_with(Punctuated::<OptionExpr, token::Comma>::parse_terminated)? {
             if opt.key.is_ident("name") {
                 let Some(value) = opt.value else {
-                    return Err(Error::new_spanned(opt.value, "rename must have a value"));
+                    return Err(Error::new_spanned(opt.key, "name must have a value"));
                 };
 
                 opts.rename = Some(value.value());

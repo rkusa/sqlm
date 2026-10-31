@@ -234,7 +234,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
         let Some((ty_owned, ty_borrowed, _)) = postgres_to_rust_type(ty) else {
             return syn::Error::new(
                 input.query.span(),
-                format!("unsupporte postgres type: {ty:?}"),
+                format!("unsupported postgres type: {ty:?}"),
             )
             .into_compile_error()
             .into();

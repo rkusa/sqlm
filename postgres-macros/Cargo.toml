@@ -15,6 +15,7 @@ default = ["json", "uuid"]
 json = ["dep:serde_json", "postgres/with-serde_json-1"]
 time = ["dep:time", "postgres/with-time-0_3"]
 uuid = ["dep:uuid", "postgres/with-uuid-1"]
+pgvector = ["dep:pgvector"]
 
 [dependencies]
 ariadne = "0.6"

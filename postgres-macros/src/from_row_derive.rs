@@ -39,7 +39,7 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         .into_iter()
         .map(|f| (f.ident.as_ref().unwrap().to_string(), f))
         .collect::<Vec<_>>();
-    fields.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    fields.sort_by(|a, b| a.0.cmp(&b.0));
 
     for (name, f) in fields {
         let opts = extract_field_options(&f.attrs)?;
