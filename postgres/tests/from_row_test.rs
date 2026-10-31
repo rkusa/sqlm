@@ -5,7 +5,7 @@ async fn test_from_row() {
     #[derive(Debug, PartialEq, Eq, FromRow)]
     struct User {
         id: i64,
-        name: String,
+        name: Option<String>,
     }
 
     let id = 1i64;
@@ -16,7 +16,7 @@ async fn test_from_row() {
         user,
         User {
             id: 1,
-            name: "first".to_string()
+            name: Some("first".to_string())
         }
     );
 }
@@ -75,7 +75,9 @@ async fn test_null_columns() {
         .unwrap();
     assert_eq!(user, UserNullName { id: 2, name: None });
 
-    let user: UserNotNullName = sql!("SELECT id, name FROM users WHERE id = 2")
+    // `name` is nullable and must be read into an `Option`; an expression of unknown nullability
+    // can be read into a `String` though (falling back to the default on `NULL`).
+    let user: UserNotNullName = sql!("SELECT id, NULLIF(name, '') AS name FROM users WHERE id = 2")
         .await
         .unwrap();
     assert_eq!(
@@ -100,7 +102,7 @@ async fn test_field_default_function_call() {
         "Unnamed".to_string()
     }
 
-    let user: User = sql!("SELECT id, name FROM users WHERE id = 2")
+    let user: User = sql!("SELECT id, NULLIF(name, '') AS name FROM users WHERE id = 2")
         .await
         .unwrap();
     assert_eq!(
@@ -121,7 +123,7 @@ async fn test_field_default_literal() {
         name: String,
     }
 
-    let user: User = sql!("SELECT id, name FROM users WHERE id = 2")
+    let user: User = sql!("SELECT id, NULLIF(name, '') AS name FROM users WHERE id = 2")
         .await
         .unwrap();
     assert_eq!(

@@ -13,7 +13,8 @@ let user: User = sql!("SELECT * FROM users WHERE id = {id}").await?;
 #[derive(Debug, FromRow)]
 struct User {
     id: i64,
-    name: String,
+    // `users.name` has no `NOT NULL` constraint, so it has to be an `Option`
+    name: Option<String>,
     role: Role,
 }
 

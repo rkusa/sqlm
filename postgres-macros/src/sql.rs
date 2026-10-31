@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use postgres::config::SslMode;
-use postgres::{Client, Config, Statement};
+use postgres::{Client, Column, Config};
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::parse::{Parse, ParseStream};
@@ -156,8 +156,8 @@ pub fn sql(item: TokenStream) -> TokenStream {
         }
     }
 
-    let stmt = match prepare(&result) {
-        Ok(stmt) => stmt,
+    let info = match inspect(&result) {
+        Ok(info) => info,
         Err(err) => {
             return syn::Error::new(input.query.span(), err)
                 .into_compile_error()
@@ -166,22 +166,16 @@ pub fn sql(item: TokenStream) -> TokenStream {
     };
 
     let mut typed_parameters = Vec::with_capacity(parameters.len());
-    for (ty, param) in stmt.params().iter().zip(parameters) {
+    for (ty, param) in info.params.iter().zip(parameters) {
         if let Some((is_array, variants)) = enum_type(ty) {
-            let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
-            for variant in variants {
-                let name = const_name(&variant);
-                enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
-            }
-
-            let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
+            let enum_ty = enum_tokens(&variants);
             if is_array {
                 typed_parameters.push(quote! {
-                    ::sqlm_postgres::internal::assert_type_slice::<_, #enum_struct>(&#param)
+                    ::sqlm_postgres::internal::assert_type_slice::<_, #enum_ty>(&#param)
                 });
             } else {
                 typed_parameters.push(quote! {
-                    ::sqlm_postgres::internal::assert_type::<_, #enum_struct>(&#param)
+                    ::sqlm_postgres::internal::assert_type::<_, #enum_ty>(&#param)
                 });
             }
             continue;
@@ -201,109 +195,100 @@ pub fn sql(item: TokenStream) -> TokenStream {
         });
     }
 
-    let col_count = stmt.columns().len();
-    if col_count == 0 {
-        return quote! {
-            ::sqlm_postgres::Sql::<'_, (), ()> {
-                query: #result,
-                parameters: &[#(&(#typed_parameters),)*],
-                marker: ::std::marker::PhantomData,
-            }
-        }
-        .into();
-    } else if col_count == 1 {
+    let cols = match info.columns.as_slice() {
+        [] => quote!(()),
         // Consider the result to be a literal
-        let ty = stmt.columns()[0].type_();
-        if let Some((is_array, variants)) = enum_type(ty) {
-            let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
-            for variant in variants {
-                let name = const_name(&variant);
-                enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
-            }
-
-            let enum_struct = if is_array {
-                quote! { ::sqlm_postgres::types::Array<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>> }
+        [column] => {
+            let ty = &column.ty;
+            if let Some((is_array, variants)) = enum_type(ty) {
+                let enum_ty = enum_tokens(&variants);
+                if is_array {
+                    quote!(::sqlm_postgres::types::Array<Vec<#enum_ty>>)
+                } else {
+                    let ty = nullable(enum_ty, column.nullable);
+                    quote!(::sqlm_postgres::types::Primitive<#ty>)
+                }
+            } else if let Some((ty, is_array)) = postgres_to_rust_type(ty) {
+                if is_array {
+                    quote!(::sqlm_postgres::types::Array<#ty>)
+                } else {
+                    let ty = nullable(ty, column.nullable);
+                    quote!(::sqlm_postgres::types::Primitive<#ty>)
+                }
             } else {
-                quote! { ::sqlm_postgres::types::Primitive<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>> }
-            };
-            return quote! {
-                ::sqlm_postgres::Sql::<'_, #enum_struct, _> {
-                    query: #result,
-                    parameters: &[#(&(#typed_parameters),)*],
-                    marker: ::std::marker::PhantomData,
-                }
-            }
-            .into();
-        } else if let Some((ty, is_array)) = postgres_to_rust_type(ty) {
-            if is_array {
-                return quote! {
-                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
-                        query: #result,
-                        parameters: &[#(&(#typed_parameters),)*],
-                        marker: ::std::marker::PhantomData,
-                    }
-                }
-                .into();
-            } else {
-                return quote! {
-                    ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Primitive<#ty>, _> {
-                        query: #result,
-                        parameters: &[#(&(#typed_parameters),)*],
-                        marker: ::std::marker::PhantomData,
-                    }
-                }
+                return syn::Error::new(
+                    input.query.span(),
+                    format!("unsupported postgres type: {ty:?}"),
+                )
+                .into_compile_error()
                 .into();
             }
-        } else {
-            return syn::Error::new(
-                input.query.span(),
-                format!("unsupported postgres type: {ty:?}"),
-            )
-            .into_compile_error()
-            .into();
         }
-    }
+        columns => {
+            let mut columns = columns.iter().collect::<Vec<_>>();
+            columns.sort_by_key(|c| c.name.as_str());
 
-    let mut columns = stmt.columns().iter().collect::<Vec<_>>();
-    columns.sort_by_key(|c| c.name());
-
-    let mut struct_columns: Vec<Type> = Vec::with_capacity(columns.len());
-    for column in columns {
-        let ty = column.type_();
-        let name = const_name(column.name());
-        if let Some((is_array, variants)) = enum_type(ty) {
-            let mut enum_variants: Vec<Type> = Vec::with_capacity(variants.len());
-            for variant in variants {
-                let name = const_name(&variant);
-                enum_variants.push(parse_quote!(::sqlm_postgres::types::EnumVariant<#name>));
+            let mut struct_columns: Vec<Type> = Vec::with_capacity(columns.len());
+            for column in columns {
+                let ty = &column.ty;
+                let name = const_name(&column.name);
+                let ty = if let Some((is_array, variants)) = enum_type(ty) {
+                    let enum_ty = enum_tokens(&variants);
+                    if is_array {
+                        quote!(Vec<#enum_ty>)
+                    } else {
+                        enum_ty
+                    }
+                } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
+                    ty
+                } else {
+                    return syn::Error::new(
+                        input.query.span(),
+                        format!("unsupported postgres type: {ty:?}"),
+                    )
+                    .into_compile_error()
+                    .into();
+                };
+                let ty = nullable(ty, column.nullable);
+                struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#ty, #name>));
             }
 
-            if is_array {
-                struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<Vec<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>>, #name>));
-            } else {
-                struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name>));
-            }
-        } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
-            struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#ty, #name>));
-        } else {
-            return syn::Error::new(
-                input.query.span(),
-                format!("unsupported postgres type: {ty:?}"),
-            )
-            .into_compile_error()
-            .into();
-        };
-    }
+            quote!(::sqlm_postgres::types::Struct<(#(#struct_columns,)*)>)
+        }
+    };
 
-    let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
+    // For queries without columns, the result type is fixed to `()`.
+    let result_ty = if info.columns.is_empty() {
+        quote!(())
+    } else {
+        quote!(_)
+    };
     quote! {
-        ::sqlm_postgres::Sql::<'_, #type_struct, _> {
+        ::sqlm_postgres::Sql::<'_, #cols, #result_ty> {
             query: #result,
             parameters: &[#(&(#typed_parameters),)*],
             marker: ::std::marker::PhantomData,
         }
     }
     .into()
+}
+
+/// Wraps `ty` in `Nullable` if the column may be `NULL`.
+fn nullable(ty: proc_macro2::TokenStream, nullable: bool) -> proc_macro2::TokenStream {
+    if nullable {
+        quote!(::sqlm_postgres::types::Nullable<#ty>)
+    } else {
+        ty
+    }
+}
+
+/// The type-level representation of a Postgres enum with the given (sorted) variants.
+fn enum_tokens(variants: &[String]) -> proc_macro2::TokenStream {
+    let variants = variants.iter().map(|variant| {
+        let name = const_name(variant);
+        quote!(::sqlm_postgres::types::EnumVariant<#name>)
+    });
+    quote!(::sqlm_postgres::types::Enum<(#(#variants,)*)>)
 }
 
 /// Maps a Postgres type to the Rust type it is read into, plus whether it is an array.
@@ -406,9 +391,23 @@ struct CachedClient {
     client: Client,
 }
 
+struct QueryInfo {
+    params: Vec<postgres::types::Type>,
+    columns: Vec<ColumnInfo>,
+}
+
+struct ColumnInfo {
+    name: String,
+    ty: postgres::types::Type,
+    /// Whether the column is known to possibly be `NULL`, i.e. it refers to a table column without
+    /// `NOT NULL` constraint. `false` also covers columns of unknown nullability (expressions,
+    /// aggregates, ...).
+    nullable: bool,
+}
+
 /// Prepares `query` on the cached connection (connecting first if necessary) to retrieve its
 /// parameter and column types. Errors are returned as messages ready to be reported at the query.
-fn prepare(query: &str) -> Result<Statement, String> {
+fn inspect(query: &str) -> Result<QueryInfo, String> {
     let Ok(database_url) = dotenvy::var("DATABASE_URL") else {
         return Err(
             "compile-time query checks require DATABASE_URL environment variable to be defined"
@@ -432,17 +431,72 @@ fn prepare(query: &str) -> Result<Statement, String> {
     }
     let cached = cached.as_mut().unwrap();
 
-    match cached.client.prepare(query) {
+    match inspect_with(&mut cached.client, query) {
         Err(err) if err.is_closed() => {
             // The connection died since it was last used, e.g. due to a server-side timeout.
             cached.client = connect(&cached.database_url)?;
-            cached.client.prepare(query).map_err(prepare_error)
+            inspect_with(&mut cached.client, query).map_err(query_error)
         }
-        result => result.map_err(prepare_error),
+        result => result.map_err(query_error),
     }
 }
 
-fn prepare_error(err: postgres::Error) -> String {
+fn inspect_with(client: &mut Client, query: &str) -> Result<QueryInfo, postgres::Error> {
+    let stmt = client.prepare(query)?;
+    let nullable = nullable_columns(client, stmt.columns())?;
+    Ok(QueryInfo {
+        params: stmt.params().to_vec(),
+        columns: stmt
+            .columns()
+            .iter()
+            .zip(nullable)
+            .map(|(column, nullable)| ColumnInfo {
+                name: column.name().to_string(),
+                ty: column.type_().clone(),
+                nullable,
+            })
+            .collect(),
+    })
+}
+
+/// Determines for each column whether it is known to possibly be `NULL`. This is only possible for
+/// columns that directly refer to a table column (via its `NOT NULL` constraint); all other columns
+/// are reported as `false`.
+fn nullable_columns(client: &mut Client, columns: &[Column]) -> Result<Vec<bool>, postgres::Error> {
+    let refs = columns
+        .iter()
+        .filter_map(|c| Some((c.table_oid()?, c.column_id()?)))
+        .collect::<Vec<_>>();
+    if refs.is_empty() {
+        return Ok(vec![false; columns.len()]);
+    }
+
+    let (rels, nums): (Vec<u32>, Vec<i16>) = refs.iter().copied().unzip();
+    let not_null = client
+        .query(
+            "SELECT attrelid, attnum, attnotnull FROM pg_attribute \
+             WHERE attrelid = ANY($1) AND attnum = ANY($2)",
+            &[&rels, &nums],
+        )?
+        .into_iter()
+        .map(|row| {
+            (
+                (row.get::<_, u32>(0), row.get::<_, i16>(1)),
+                row.get::<_, bool>(2),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    Ok(columns
+        .iter()
+        .map(|c| match (c.table_oid(), c.column_id()) {
+            (Some(oid), Some(num)) => not_null.get(&(oid, num)) == Some(&false),
+            _ => false,
+        })
+        .collect())
+}
+
+fn query_error(err: postgres::Error) -> String {
     if let Some(db_error) = err.as_db_error() {
         format!("query failed: {db_error}")
     } else {

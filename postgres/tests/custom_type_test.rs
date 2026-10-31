@@ -7,7 +7,7 @@ struct Id(i64);
 #[derive(Debug, PartialEq, Eq, FromRow)]
 struct User {
     id: Id,
-    name: String,
+    name: Option<String>,
 }
 
 impl SqlType for Id {
@@ -84,7 +84,7 @@ async fn test_property() {
         users,
         User {
             id: Id(1),
-            name: "first".to_string()
+            name: Some("first".to_string())
         }
     );
 }
@@ -94,7 +94,7 @@ async fn test_option_property() {
     #[derive(Debug, PartialEq, Eq, FromRow)]
     struct User {
         id: Option<Id>,
-        name: String,
+        name: Option<String>,
     }
     let user: User = sql!("SELECT id, name FROM users WHERE id = 1")
         .await
@@ -103,7 +103,7 @@ async fn test_option_property() {
         user,
         User {
             id: Some(Id(1)),
-            name: "first".to_string()
+            name: Some("first".to_string())
         }
     );
 }
@@ -117,7 +117,7 @@ async fn test_property_option() {
         users,
         Some(User {
             id: Id(1),
-            name: "first".to_string()
+            name: Some("first".to_string())
         })
     );
 }
@@ -149,11 +149,11 @@ async fn test_property_vec() {
         vec![
             User {
                 id: Id(1),
-                name: "first".to_string()
+                name: Some("first".to_string())
             },
             User {
                 id: Id(2),
-                name: String::new()
+                name: None
             }
         ]
     );
@@ -169,7 +169,7 @@ async fn test_param() {
         users,
         vec![User {
             id: Id(1),
-            name: "first".to_string()
+            name: Some("first".to_string())
         }]
     );
 }
@@ -185,11 +185,11 @@ async fn test_vec_param() {
         vec![
             User {
                 id: Id(1),
-                name: "first".to_string()
+                name: Some("first".to_string())
             },
             User {
                 id: Id(2),
-                name: String::new()
+                name: None
             }
         ]
     );

@@ -20,7 +20,7 @@ pub struct Session(pub(crate) deadpool_postgres::Client);
 /// # Example
 /// ```
 /// # use sqlm_postgres::{sql, Connection};
-/// pub async fn fetch_username(id: i64, conn: impl Connection) -> Result<String, sqlm_postgres::Error> {
+/// pub async fn fetch_username(id: i64, conn: impl Connection) -> Result<Option<String>, sqlm_postgres::Error> {
 ///     sql!("SELECT name FROM users WHERE id = {id}")
 ///         .run_with(conn)
 ///         .await

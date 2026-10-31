@@ -1,0 +1,22 @@
+error[E0277]: `Sql<'_, sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, "id">, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, "name">)>, User>` is not a future
+  --> tests/fail-nightly/nullable_column.rs:12:67
+   |
+12 |     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").await.unwrap();
+   |                                                                   ^^^^^ `Sql<'_, sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, "id">, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, "name">)>, User>` is not a future
+   |
+   = help: the trait `IntoFuture` is not implemented for `Sql<'_, sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, "id">, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, "name">)>, User>`
+   = note: Sql<'_, sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, "id">, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, "name">)>, User> must be a future or must implement `IntoFuture` to be awaited
+help: the trait `IntoFuture` is conditionally implemented for `Sql<'_, Cols, T>`
+  --> $WORKSPACE/postgres/src/future.rs
+   |
+   | / impl<'a, Cols, T> std::future::IntoFuture for Sql<'a, Cols, T>
+   | | where
+   | |     T: Query<Cols> + Send + Sync + 'a,
+   | |        ----------- unsatisfied requirement introduced here: `_: sqlm_postgres::query::Query<_>`
+   | |     Cols: Send + Sync + 'a,
+   | |___________________________^
+help: remove the `.await`
+   |
+12 -     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").await.unwrap();
+12 +     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").unwrap();
+   |

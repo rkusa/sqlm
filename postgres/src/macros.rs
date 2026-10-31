@@ -20,11 +20,12 @@
 /// [`FromSql`]: crate::FromSql
 /// [`ToSql`]: crate::ToSql
 pub use sqlm_postgres_macros::Enum;
-/// Derive [`FromRow`] for a struct, required read a query result into a struct.
+/// Derive [`FromRow`] for a struct, required to read a query result into a struct.
 ///
-/// Each struct property must have a [`Default::default`] implementation (used for null values; you
-/// can of course use [`Option`] as its default is simply [`None`]).
-/// Alternatively, the default value can be set using a `#[sqlm(default = ...)]` attribute.
+/// The struct's fields must match the query's columns by name and type. A column that refers to a
+/// table column without `NOT NULL` constraint must be read into an [`Option`]. Fields that aren't
+/// an [`Option`] fall back to [`Default::default`] (or the value of a `#[sqlm(default = ...)]`
+/// attribute) if a column of unknown nullability (e.g. an expression) returns `NULL`.
 ///
 /// # Example
 ///
@@ -64,7 +65,7 @@ pub use sqlm_postgres_macros::FromRow;
 /// # use sqlm_postgres::sql;
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let name: String = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64).await?;
+/// let name: Option<String> = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64).await?;
 /// # Ok(())
 /// # }
 /// ```

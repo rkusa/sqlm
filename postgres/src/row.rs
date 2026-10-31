@@ -7,21 +7,24 @@ pub struct Row<Cols> {
     marker: PhantomData<Cols>,
 }
 
-/// A trait for types that can be created from a [`Row`] (a postgres row containing columns as
-/// constraint by `Cols`).
+/// A trait for types that can be created from a [`Row`].
 ///
 /// This is usually derived via [`FromRow`] and not implemented manually.
 ///
 /// [`FromRow`]: `derive@crate::FromRow`
 #[diagnostic::on_unimplemented(
-    message = "`{Self}` does not match the columns of this query",
-    label = "field names and types must match the query's columns exactly",
-    note = "the query returns `{Cols}`",
-    note = "on stable Rust, column and enum variant names are shown as hashes; a nightly toolchain \
-            shows them as strings"
+    message = "`{Self}` cannot be read from a row",
+    label = "does not implement `FromRow`",
+    note = "derive `FromRow` for `{Self}`"
 )]
-pub trait FromRow<Cols>: Sized {
-    fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error>;
+pub trait FromRow: Sized {
+    /// The struct's fields as a list of columns, compared against the columns returned by a query
+    /// (see [`Compatible`]).
+    ///
+    /// [`Compatible`]: crate::types::Compatible
+    type Cols;
+
+    fn from_row(row: Row<Self::Cols>) -> Result<Self, tokio_postgres::Error>;
 }
 
 impl<Cols> Deref for Row<Cols> {

@@ -1,0 +1,30 @@
+error[E0277]: the field `sqlm_postgres::types::StructColumn<String, 3546873949167855552>` cannot be read from the column `sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, 3546873949167855552>`
+  --> tests/fail-stable/nullable_column.rs:12:67
+   |
+12 |     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").await.unwrap();
+   |                                                                   ^^^^^ field and column differ in name, type, or nullability
+   |
+   = help: the trait `sqlm_postgres::types::ColumnCompatible<sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, 3546873949167855552>>` is not implemented for `sqlm_postgres::types::StructColumn<String, 3546873949167855552>`
+   = note: a column wrapped in `Nullable` may be `NULL` and must be read into an `Option`
+help: the following other types implement trait `sqlm_postgres::types::ColumnCompatible<Col>`
+  --> $WORKSPACE/postgres/src/types.rs
+   |
+   | /         impl<T, const NAME: $name> ColumnCompatible<StructColumn<T, NAME>>
+   | |             for StructColumn<T, NAME>
+   | |_____________________________________^ `sqlm_postgres::types::StructColumn<T, NAME>`
+...
+   | /         impl<T, const NAME: $name> ColumnCompatible<StructColumn<T, NAME>>
+   | |             for StructColumn<Nullable<T>, NAME>
+   | |_______________________________________________^ `sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<T>, NAME>`
+...
+   |   impl_column_compatible!(usize);
+   |   ------------------------------ in this macro invocation
+   = note: required for `(sqlm_postgres::types::StructColumn<i64, 6898215271518772730>, sqlm_postgres::types::StructColumn<String, 3546873949167855552>)` to implement `sqlm_postgres::types::Compatible<(sqlm_postgres::types::StructColumn<i64, 6898215271518772730>, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, 3546873949167855552>)>`
+   = note: required for `User` to implement `sqlm_postgres::query::Query<sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, 6898215271518772730>, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, 3546873949167855552>)>>`
+   = note: required for `Sql<'_, sqlm_postgres::types::Struct<(sqlm_postgres::types::StructColumn<i64, 6898215271518772730>, sqlm_postgres::types::StructColumn<sqlm_postgres::types::Nullable<String>, 3546873949167855552>)>, User>` to implement `IntoFuture`
+   = note: this error originates in the macro `impl_column_compatible` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: remove the `.await`
+   |
+12 -     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").await.unwrap();
+12 +     let _: User = sql!("SELECT id, name FROM users WHERE id = 1").unwrap();
+   |

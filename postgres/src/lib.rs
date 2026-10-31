@@ -1,6 +1,8 @@
 #![cfg_attr(nightly_column_names, feature(adt_const_params, unsized_const_params))]
 #![cfg_attr(nightly_column_names, allow(incomplete_features))]
 #![forbid(unsafe_code)]
+// For the macro generating the `Compatible` impls for tuples of up to 128 columns.
+#![recursion_limit = "256"]
 
 //! An [`sql!`] macro to write compile-time checked database queries similar to how [`format!`]
 //! works.
@@ -18,7 +20,8 @@
 //! #[derive(Debug, FromRow)]
 //! struct User {
 //!     id: i64,
-//!     name: String,
+//!     // `users.name` has no `NOT NULL` constraint, so it has to be an `Option`
+//!     name: Option<String>,
 //!     role: Role,
 //! }
 //!
@@ -47,9 +50,11 @@
 //!   opt out; queries then have to be executed via [`Sql::run_with`] on a manually created
 //!   [`pool::Pool`])
 //! - Compile-time checks cannot be disabled. Thus also requires database access on your CI.
-//! - Does not know whether rows returned from Postgres are nullable and consequentially
-//!   requires all types to implement [`Default::default`], which it falls back to if Postgres
-//!   returns null.
+//! - Nullability is only known for columns that directly refer to a table column: if that column
+//!   has no `NOT NULL` constraint, it must be read into an [`Option`]. For all other columns
+//!   (expressions, aggregates, ...) nullability is unknown; they can be read into any type, and
+//!   struct fields that aren't an [`Option`] fall back to [`Default::default`] if Postgres returns
+//!   `NULL`. Note that a `NOT NULL` column can still be `NULL` in the result of an outer join.
 //! - Emits `tracing` spans for connecting and for every query. A subscriber that persists traces
 //!   through sqlm itself must filter these out (target `sqlm_postgres`), otherwise persisting a
 //!   span runs a query, which emits a span, which gets persisted, ... endlessly.
@@ -100,7 +105,7 @@ static POOL: once_cell::sync::OnceCell<pool::Pool> = once_cell::sync::OnceCell::
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let conn = connect().await?;
-/// let name: String = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64)
+/// let name: Option<String> = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64)
 ///     .run_with(conn)
 ///     .await?;
 /// # Ok(())
@@ -112,7 +117,7 @@ static POOL: once_cell::sync::OnceCell<pool::Pool> = once_cell::sync::OnceCell::
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut conn = connect().await?;
 /// let tx = conn.transaction().await?;
-/// let name: String = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64)
+/// let name: Option<String> = sql!("SELECT name FROM users WHERE id = {id}", id = 1i64)
 ///     .run_with(&tx)
 ///     .await?;
 /// tx.commit().await?;

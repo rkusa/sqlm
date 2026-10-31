@@ -47,9 +47,12 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         let (ty, kind) = extract_inner_type(&f.ty)?;
 
         let name = const_name(&name);
-        struct_columns.push(parse_quote!(
-            ::sqlm_postgres::types::StructColumn<<#ty as ::sqlm_postgres::internal::AsSqlType>::SqlType, #name>
-        ));
+        let column_ty = quote!(<#ty as ::sqlm_postgres::internal::AsSqlType>::SqlType);
+        let column_ty = match kind {
+            Kind::Option => quote!(::sqlm_postgres::types::Nullable<#column_ty>),
+            Kind::Other => column_ty,
+        };
+        struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#column_ty, #name>));
 
         // Forward only certain args
         let attrs = f
@@ -81,11 +84,12 @@ pub fn expand_derive_from_row(input: DeriveInput) -> syn::Result<TokenStream> {
         }
     }
 
-    let type_struct = quote! { ::sqlm_postgres::types::Struct<(#(#struct_columns,)*)> };
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics ::sqlm_postgres::FromRow<#type_struct> for #ident #ty_generics #where_clause {
-            fn from_row(row: ::sqlm_postgres::Row<#type_struct>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
+        impl #impl_generics ::sqlm_postgres::FromRow for #ident #ty_generics #where_clause {
+            type Cols = (#(#struct_columns,)*);
+
+            fn from_row(row: ::sqlm_postgres::Row<Self::Cols>) -> Result<Self, ::sqlm_postgres::tokio_postgres::Error> {
                 Ok(Self {
                     #(#field_assignments)*
                 })

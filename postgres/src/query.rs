@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use tokio_postgres::types::{FromSqlOwned, ToSql};
 
-use crate::types::{Array, Bytea, Primitive, SqlType, Struct};
+use crate::types::{Array, Bytea, Compatible, MaybeNullable, Primitive, SqlType, Struct};
 use crate::{Error, FromRow, Sql};
 
 /// Implemented by the result types a query with the columns `Cols` can be read into.
@@ -13,6 +13,7 @@ use crate::{Error, FromRow, Sql};
     note = "the query returns `{Cols}`",
     note = "supported result types are primitives, types implementing `SqlType` (e.g. derived \
             `Enum`s), and structs deriving `FromRow`, each optionally wrapped in `Option` or `Vec`",
+    note = "a column wrapped in `Nullable` may be `NULL` and must be read into an `Option`",
     note = "on stable Rust, column and enum variant names are shown as hashes; a nightly toolchain \
             shows them as strings"
 )]
@@ -22,6 +23,8 @@ pub trait Query<Cols>: Sized {
         conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>>;
 }
+
+// Single column, single row.
 
 impl<T> Query<Primitive<T::Type>> for T
 where
@@ -48,13 +51,13 @@ impl Query<Primitive<Bytea>> for Vec<u8> {
     }
 }
 
-impl<T> Query<Primitive<T::Type>> for Option<T>
+impl<T, N> Query<Primitive<N>> for Option<T>
 where
     T: SqlType + FromSqlOwned + ToSql + Send + Sync + 'static,
-    T::Type: Send + Sync + 'static,
+    N: MaybeNullable<T::Type> + Send + Sync + 'static,
 {
     fn query<'a>(
-        sql: &'a Sql<'a, Primitive<T::Type>, Self>,
+        sql: &'a Sql<'a, Primitive<N>, Self>,
         conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
@@ -67,9 +70,12 @@ where
     }
 }
 
-impl Query<Primitive<Bytea>> for Option<Vec<u8>> {
+impl<N> Query<Primitive<N>> for Option<Vec<u8>>
+where
+    N: MaybeNullable<Bytea> + Send + Sync + 'static,
+{
     fn query<'a>(
-        sql: &'a Sql<'a, Primitive<Bytea>, Self>,
+        sql: &'a Sql<'a, Primitive<N>, Self>,
         conn: impl super::Connection + 'a,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
@@ -81,6 +87,8 @@ impl Query<Primitive<Bytea>> for Option<Vec<u8>> {
         })
     }
 }
+
+// Single column, many rows.
 
 impl<T> Query<Primitive<T::Type>> for Vec<T>
 where
@@ -114,6 +122,46 @@ impl Query<Primitive<Bytea>> for Vec<Vec<u8>> {
     }
 }
 
+impl<T, N> Query<Primitive<N>> for Vec<Option<T>>
+where
+    T: SqlType + FromSqlOwned + ToSql + Send + Sync + 'static,
+    N: MaybeNullable<T::Type> + Send + Sync + 'static,
+{
+    fn query<'a>(
+        sql: &'a Sql<'a, Primitive<N>, Self>,
+        conn: impl super::Connection + 'a,
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+        Box::pin(async move {
+            let rows = conn.query(sql.query, sql.parameters).await?;
+            rows.into_iter()
+                .map(|row| row.try_get::<'_, _, Option<T>>(0).map_err(Error::from))
+                .collect()
+        })
+    }
+}
+
+impl<N> Query<Primitive<N>> for Vec<Option<Vec<u8>>>
+where
+    N: MaybeNullable<Bytea> + Send + Sync + 'static,
+{
+    fn query<'a>(
+        sql: &'a Sql<'a, Primitive<N>, Self>,
+        conn: impl super::Connection + 'a,
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
+        Box::pin(async move {
+            let rows = conn.query(sql.query, sql.parameters).await?;
+            rows.into_iter()
+                .map(|row| {
+                    row.try_get::<'_, _, Option<Vec<u8>>>(0)
+                        .map_err(Error::from)
+                })
+                .collect()
+        })
+    }
+}
+
+// Single array column, single row.
+
 impl<T> Query<Array<Vec<T::Type>>> for Vec<T>
 where
     T: SqlType + FromSqlOwned + ToSql + Send + Sync + 'static,
@@ -142,10 +190,13 @@ impl Query<Array<Vec<Bytea>>> for Vec<Vec<u8>> {
     }
 }
 
+// Multiple columns (read into structs).
+
 impl<T, Cols> Query<Struct<Cols>> for T
 where
     Cols: Send + Sync,
-    T: FromRow<Struct<Cols>> + Send + Sync,
+    T: FromRow + Send + Sync,
+    T::Cols: Compatible<Cols>,
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
@@ -153,7 +204,7 @@ where
     ) -> Pin<Box<dyn Future<Output = Result<Self, Error>> + Send + 'a>> {
         Box::pin(async move {
             let row = conn.query_one(sql.query, sql.parameters).await?;
-            Ok(FromRow::<Struct<Cols>>::from_row(row.into())?)
+            Ok(T::from_row(row.into())?)
         })
     }
 }
@@ -161,7 +212,8 @@ where
 impl<T, Cols> Query<Struct<Cols>> for Option<T>
 where
     Cols: Send + Sync,
-    T: FromRow<Struct<Cols>> + Send + Sync,
+    T: FromRow + Send + Sync,
+    T::Cols: Compatible<Cols>,
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
@@ -170,7 +222,7 @@ where
         Box::pin(async move {
             let row = conn.query_opt(sql.query, sql.parameters).await?;
             match row {
-                Some(row) => Ok(Some(FromRow::<Struct<Cols>>::from_row(row.into())?)),
+                Some(row) => Ok(Some(T::from_row(row.into())?)),
                 None => Ok(None),
             }
         })
@@ -180,7 +232,8 @@ where
 impl<T, Cols> Query<Struct<Cols>> for Vec<T>
 where
     Cols: Send + Sync,
-    T: FromRow<Struct<Cols>> + Send + Sync,
+    T: FromRow + Send + Sync,
+    T::Cols: Compatible<Cols>,
 {
     fn query<'a>(
         sql: &'a Sql<'a, Struct<Cols>, Self>,
@@ -189,11 +242,13 @@ where
         Box::pin(async move {
             let rows = conn.query(sql.query, sql.parameters).await?;
             rows.into_iter()
-                .map(|row| FromRow::<Struct<Cols>>::from_row(row.into()).map_err(Error::from))
+                .map(|row| T::from_row(row.into()).map_err(Error::from))
                 .collect()
         })
     }
 }
+
+// No columns.
 
 impl Query<()> for () {
     fn query<'a>(
