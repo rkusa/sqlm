@@ -177,17 +177,17 @@ pub fn sql(item: TokenStream) -> TokenStream {
             let enum_struct = quote! { ::sqlm_postgres::types::Enum<(#(#enum_variants,)*)> };
             if is_array {
                 typed_parameters.push(quote! {
-                    ::sqlm_postgres::internal::assert_type_enum_slice::<_, #enum_struct>(&#param)
+                    ::sqlm_postgres::internal::assert_type_slice::<_, #enum_struct>(&#param)
                 });
             } else {
                 typed_parameters.push(quote! {
-                    ::sqlm_postgres::internal::assert_type_enum::<_, #enum_struct>(&#param)
+                    ::sqlm_postgres::internal::assert_type::<_, #enum_struct>(&#param)
                 });
             }
             continue;
         }
 
-        let Some((ty_owned, ty_borrowed, _)) = postgres_to_rust_type(ty) else {
+        let Some((ty, _)) = postgres_to_rust_type(ty) else {
             return syn::Error::new(
                 input.query.span(),
                 format!("unsupported postgres type: {ty:?}"),
@@ -197,7 +197,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
         };
 
         typed_parameters.push(quote! {
-            ::sqlm_postgres::internal::assert_type::<_, _, #ty_borrowed, #ty_owned>(&(#param))
+            ::sqlm_postgres::internal::assert_type::<_, #ty>(&(#param))
         });
     }
 
@@ -234,7 +234,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
                 }
             }
             .into();
-        } else if let Some((ty, _, is_array)) = postgres_to_rust_type(ty) {
+        } else if let Some((ty, is_array)) = postgres_to_rust_type(ty) {
             if is_array {
                 return quote! {
                     ::sqlm_postgres::Sql::<'_, ::sqlm_postgres::types::Array<#ty>, _> {
@@ -283,7 +283,7 @@ pub fn sql(item: TokenStream) -> TokenStream {
             } else {
                 struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<::sqlm_postgres::types::Enum<(#(#enum_variants,)*)>, #name>));
             }
-        } else if let Some((ty, _, _)) = postgres_to_rust_type(ty) {
+        } else if let Some((ty, _)) = postgres_to_rust_type(ty) {
             struct_columns.push(parse_quote!(::sqlm_postgres::types::StructColumn<#ty, #name>));
         } else {
             return syn::Error::new(
@@ -306,9 +306,8 @@ pub fn sql(item: TokenStream) -> TokenStream {
     .into()
 }
 
-fn postgres_to_rust_type(
-    ty: &postgres::types::Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream, bool)> {
+/// Maps a Postgres type to the Rust type it is read into, plus whether it is an array.
+fn postgres_to_rust_type(ty: &postgres::types::Type) -> Option<(proc_macro2::TokenStream, bool)> {
     use postgres::types::{FromSql, Kind};
 
     if let Kind::Array(ty) = ty.kind() {
@@ -317,61 +316,30 @@ fn postgres_to_rust_type(
             return None;
         }
 
-        return postgres_to_rust_type(ty).map(|(ty, _, _)| (quote!(Vec<#ty>), quote!([#ty]), true));
+        return postgres_to_rust_type(ty).map(|(ty, _)| (quote!(Vec<#ty>), true));
     }
 
-    match ty {
-        ty if <String as FromSql>::accepts(ty) => Some((quote!(String), quote!(str), false)),
-        ty if <i64 as FromSql>::accepts(ty) => Some((quote!(i64), quote!(i64), false)),
-        ty if <i32 as FromSql>::accepts(ty) => Some((quote!(i32), quote!(i32), false)),
-        ty if <f64 as FromSql>::accepts(ty) => Some((quote!(f64), quote!(f64), false)),
-        ty if <f32 as FromSql>::accepts(ty) => Some((quote!(f32), quote!(f32), false)),
-        ty if <bool as FromSql>::accepts(ty) => Some((quote!(bool), quote!(bool), false)),
-        ty if <Vec<u8> as FromSql>::accepts(ty) => Some((
-            quote!(::sqlm_postgres::types::Bytea),
-            quote!(::sqlm_postgres::types::Bytea),
-            false,
-        )),
-
-        // serde_json::Value
+    let ty = match ty {
+        ty if <String as FromSql>::accepts(ty) => quote!(String),
+        ty if <i64 as FromSql>::accepts(ty) => quote!(i64),
+        ty if <i32 as FromSql>::accepts(ty) => quote!(i32),
+        ty if <f64 as FromSql>::accepts(ty) => quote!(f64),
+        ty if <f32 as FromSql>::accepts(ty) => quote!(f32),
+        ty if <bool as FromSql>::accepts(ty) => quote!(bool),
+        ty if <Vec<u8> as FromSql>::accepts(ty) => quote!(::sqlm_postgres::types::Bytea),
         #[cfg(feature = "json")]
-        ty if <::serde_json::Value as FromSql>::accepts(ty) => Some((
-            quote!(::serde_json::Value),
-            quote!(::serde_json::Value),
-            false,
-        )),
-
-        // time::Date
+        ty if <::serde_json::Value as FromSql>::accepts(ty) => quote!(::serde_json::Value),
         #[cfg(feature = "time")]
-        ty if <::time::Date as FromSql>::accepts(ty) => {
-            Some((quote!(::time::Date), quote!(::time::Date), false))
-        }
-
-        // time::OffsetDateTime
+        ty if <::time::Date as FromSql>::accepts(ty) => quote!(::time::Date),
         #[cfg(feature = "time")]
-        ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => Some((
-            quote!(::time::OffsetDateTime),
-            quote!(::time::OffsetDateTime),
-            false,
-        )),
-
-        // uuid::Uuid
+        ty if <::time::OffsetDateTime as FromSql>::accepts(ty) => quote!(::time::OffsetDateTime),
         #[cfg(feature = "uuid")]
-        ty if <::uuid::Uuid as FromSql>::accepts(ty) => {
-            Some((quote!(::uuid::Uuid), quote!(::uuid::Uuid), false))
-        }
-
-        // pgvector::Vector
+        ty if <::uuid::Uuid as FromSql>::accepts(ty) => quote!(::uuid::Uuid),
         #[cfg(feature = "pgvector")]
-        ty if <::pgvector::Vector as FromSql>::accepts(ty) => Some((
-            quote!(::pgvector::Vector),
-            quote!(::pgvector::Vector),
-            false,
-        )),
-
-        // Unsupported
-        _ => None,
-    }
+        ty if <::pgvector::Vector as FromSql>::accepts(ty) => quote!(::pgvector::Vector),
+        _ => return None,
+    };
+    Some((ty, false))
 }
 
 fn enum_type(ty: &postgres::types::Type) -> Option<(bool, Vec<String>)> {

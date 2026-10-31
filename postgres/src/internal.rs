@@ -1,119 +1,27 @@
-use std::marker::PhantomData;
-
 use crate::SqlType;
 use crate::types::Bytea;
 
+/// Asserts at compile time that `t` can be passed as a parameter of the Postgres type that maps to
+/// the Rust type `S`.
 #[inline]
-pub const fn assert_type<T, S, Borrowed: ?Sized, Owned>(t: &T) -> &T
-where
-    T: AsSqlType<SqlType = S>,
-    for<'a> Valid<'a, Borrowed, Owned>: From<S>,
-{
-    t
-}
-
-#[inline]
-pub const fn assert_type_enum<T, S>(t: &T) -> &T
+pub const fn assert_type<T, S>(t: &T) -> &T
 where
     T: AsSqlType<SqlType = S>,
 {
     t
 }
 
+/// Like [`assert_type`], but for each element of a slice.
 #[inline]
-pub const fn assert_type_enum_slice<T, S>(t: &[T]) -> &[T]
+pub const fn assert_type_slice<T, S>(t: &[T]) -> &[T]
 where
     T: AsSqlType<SqlType = S>,
 {
     t
 }
 
-pub struct Valid<'a, B: 'a + ?Sized, O = B>(PhantomData<(&'a B, O)>);
-
-impl<'a, T> From<&'a T> for Valid<'a, T, T> {
-    fn from(_: &'a T) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<T> From<T> for Valid<'_, T, T> {
-    fn from(_: T) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'a, T> From<Option<&'a T>> for Valid<'a, T, T> {
-    fn from(_: Option<&'a T>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<T> From<Option<T>> for Valid<'_, T, T> {
-    fn from(_: Option<T>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'a> From<&'a str> for Valid<'a, str, String> {
-    fn from(_: &'a str) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl From<String> for Valid<'_, str, String> {
-    fn from(_: String) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'a> From<Option<&'a str>> for Valid<'a, str, String> {
-    fn from(_: Option<&'a str>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl From<Option<String>> for Valid<'_, str, String> {
-    fn from(_: Option<String>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'a, T> From<&'a [T]> for Valid<'a, [T], Vec<T>> {
-    fn from(_: &'a [T]) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<T> From<Vec<T>> for Valid<'_, [T], Vec<T>> {
-    fn from(_: Vec<T>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'a, T> From<Option<&'a [T]>> for Valid<'a, [T], Vec<T>> {
-    fn from(_: Option<&'a [T]>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<T> From<Option<Vec<T>>> for Valid<'_, [T], Vec<T>> {
-    fn from(_: Option<Vec<T>>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl From<Vec<u8>> for Valid<'_, Bytea> {
-    fn from(_: Vec<u8>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl From<Vec<Vec<u8>>> for Valid<'_, [Bytea], Vec<Bytea>> {
-    fn from(_: Vec<Vec<u8>>) -> Self {
-        Self(PhantomData)
-    }
-}
-
+/// The Rust type a parameter of this type maps to on the Postgres side. Unlike [`SqlType`], this
+/// is also implemented for `Option`s and `Vec`s of such types.
 pub trait AsSqlType {
     type SqlType;
 }
@@ -159,7 +67,6 @@ impl AsSqlType for &[u8] {
 impl AsSqlType for Option<&[u8]> {
     type SqlType = Bytea;
 }
-
 impl AsSqlType for Vec<Vec<u8>> {
-    type SqlType = Self;
+    type SqlType = Vec<Bytea>;
 }

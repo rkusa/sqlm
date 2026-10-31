@@ -1,0 +1,15 @@
+error[E0271]: type mismatch resolving `<i32 as AsSqlType>::SqlType == i64`
+ --> tests/fail/parameter_type_mismatch.rs:3:45
+  |
+3 |     let _: sqlm_postgres::Sql<'_, _, i64> = sqlm_postgres::sql!("SELECT id FROM users WHERE id = {id}");
+  |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `i64`, found `i32`
+  |
+note: required by a bound in `sqlm_postgres::internal::assert_type`
+ --> $WORKSPACE/postgres/src/internal.rs
+  |
+  | pub const fn assert_type<T, S>(t: &T) -> &T
+  |              ----------- required by a bound in this function
+  | where
+  |     T: AsSqlType<SqlType = S>,
+  |                  ^^^^^^^^^^^ required by this bound in `assert_type`
+  = note: this error originates in the macro `sqlm_postgres::sql` (in Nightly builds, run with -Z macro-backtrace for more info)
