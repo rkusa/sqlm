@@ -1,7 +1,22 @@
-error[E0271]: type mismatch resolving `<String as SqlType>::Type == i64`
+error[E0277]: `Sql<'_, sqlm_postgres::types::Primitive<i64>, String>` is not a future
  --> tests/fail-nightly/scalar_mismatch.rs:5:56
   |
 5 |     let _: String = sql!("SELECT COUNT(*) FROM users").await.unwrap();
-  |                                                        ^^^^^ expected `i64`, found `String`
+  |                                                        ^^^^^ `Sql<'_, sqlm_postgres::types::Primitive<i64>, String>` is not a future
   |
-  = note: required for `Sql<'_, sqlm_postgres::types::Primitive<i64>, String>` to implement `IntoFuture`
+  = help: the trait `IntoFuture` is not implemented for `Sql<'_, sqlm_postgres::types::Primitive<i64>, String>`
+  = note: Sql<'_, sqlm_postgres::types::Primitive<i64>, String> must be a future or must implement `IntoFuture` to be awaited
+help: the trait `IntoFuture` is conditionally implemented for `Sql<'_, Cols, T>`
+ --> $WORKSPACE/postgres/src/future.rs
+  |
+  | / impl<'a, Cols, T> std::future::IntoFuture for Sql<'a, Cols, T>
+  | | where
+  | |     T: Query<Cols> + Send + Sync + 'a,
+  | |        ----------- unsatisfied requirement introduced here: `_: sqlm_postgres::query::Query<_>`
+  | |     Cols: Send + Sync + 'a,
+  | |___________________________^
+help: remove the `.await`
+  |
+5 -     let _: String = sql!("SELECT COUNT(*) FROM users").await.unwrap();
+5 +     let _: String = sql!("SELECT COUNT(*) FROM users").unwrap();
+  |

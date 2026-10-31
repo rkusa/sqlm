@@ -1,20 +1,20 @@
-error[E0277]: the trait bound `String: sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<String>>>` is not satisfied
+error[E0277]: `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` is not a future
  --> tests/fail-nightly/literal_array_to_literal.rs:6:10
   |
 6 |         .await
-  |          ^^^^^ the trait `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<String>>>` is not implemented for `String`
+  |          ^^^^^ `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` is not a future
   |
-  = help: the following other types implement trait `sqlm_postgres::query::Query<Cols>`:
-            `()` implements `sqlm_postgres::query::Query<()>`
-            `Option<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<<T as SqlType>::Type>>`
-            `Option<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Struct<Cols>>`
-            `Option<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<sqlm_postgres::types::Bytea>>`
-            `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<<T as SqlType>::Type>>>`
-            `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Primitive<<T as SqlType>::Type>>`
-            `Vec<T>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Struct<Cols>>`
-            `Vec<Vec<u8>>` implements `sqlm_postgres::query::Query<sqlm_postgres::types::Array<Vec<sqlm_postgres::types::Bytea>>>`
-          and $N others
-  = note: required for `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>` to implement `IntoFuture`
+  = help: the trait `IntoFuture` is not implemented for `Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String>`
+  = note: Sql<'_, sqlm_postgres::types::Array<Vec<String>>, String> must be a future or must implement `IntoFuture` to be awaited
+help: the trait `IntoFuture` is conditionally implemented for `Sql<'_, Cols, T>`
+ --> $WORKSPACE/postgres/src/future.rs
+  |
+  | / impl<'a, Cols, T> std::future::IntoFuture for Sql<'a, Cols, T>
+  | | where
+  | |     T: Query<Cols> + Send + Sync + 'a,
+  | |        ----------- unsatisfied requirement introduced here: `_: sqlm_postgres::query::Query<_>`
+  | |     Cols: Send + Sync + 'a,
+  | |___________________________^
 help: remove the `.await`
   |
 6 -         .await

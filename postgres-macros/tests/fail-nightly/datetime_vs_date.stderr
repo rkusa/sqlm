@@ -1,7 +1,21 @@
-error[E0271]: type mismatch resolving `<Date as SqlType>::Type == OffsetDateTime`
+error[E0277]: `Sql<'_, sqlm_postgres::types::Primitive<OffsetDateTime>, time::Date>` is not a future
  --> tests/fail-nightly/datetime_vs_date.rs:6:10
   |
 6 |         .await
-  |          ^^^^^ expected `OffsetDateTime`, found `Date`
+  |          ^^^^^ `Sql<'_, sqlm_postgres::types::Primitive<OffsetDateTime>, time::Date>` is not a future
   |
-  = note: required for `Sql<'_, sqlm_postgres::types::Primitive<OffsetDateTime>, time::Date>` to implement `IntoFuture`
+  = help: the trait `IntoFuture` is not implemented for `Sql<'_, sqlm_postgres::types::Primitive<OffsetDateTime>, time::Date>`
+  = note: Sql<'_, sqlm_postgres::types::Primitive<OffsetDateTime>, time::Date> must be a future or must implement `IntoFuture` to be awaited
+help: the trait `IntoFuture` is conditionally implemented for `Sql<'_, Cols, T>`
+ --> $WORKSPACE/postgres/src/future.rs
+  |
+  | / impl<'a, Cols, T> std::future::IntoFuture for Sql<'a, Cols, T>
+  | | where
+  | |     T: Query<Cols> + Send + Sync + 'a,
+  | |        ----------- unsatisfied requirement introduced here: `_: sqlm_postgres::query::Query<_>`
+  | |     Cols: Send + Sync + 'a,
+  | |___________________________^
+help: remove the `.await`
+  |
+6 -         .await
+  |
