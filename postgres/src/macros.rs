@@ -53,6 +53,11 @@ pub use sqlm_postgres_macros::FromRow;
 /// A connection is automatically established, but also be explicitly set via
 /// [`Sql::run_with`].
 ///
+/// Literal `{` and `}` are written as `{{` and `}}`. A `$` directly followed by a digit is
+/// rejected, as it would clash with the positional parameters generated for the arguments; this
+/// also applies inside string literals (e.g. `'$5'`), where the value has to be passed as a
+/// parameter instead.
+///
 /// # Examples
 ///
 /// ```
