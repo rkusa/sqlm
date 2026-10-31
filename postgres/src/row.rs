@@ -13,6 +13,13 @@ pub struct Row<Cols> {
 /// This is usually derived via [`FromRow`] and not implemented manually.
 ///
 /// [`FromRow`]: `derive@crate::FromRow`
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` does not match the columns of this query",
+    label = "field names and types must match the query's columns exactly",
+    note = "the query returns `{Cols}`",
+    note = "on stable Rust, column and enum variant names are shown as hashes; a nightly toolchain \
+            shows them as strings"
+)]
 pub trait FromRow<Cols>: Sized {
     fn from_row(row: Row<Cols>) -> Result<Self, tokio_postgres::Error>;
 }

@@ -6,6 +6,16 @@ use tokio_postgres::types::{FromSqlOwned, ToSql};
 use crate::types::{Array, Bytea, Primitive, SqlType, Struct};
 use crate::{Error, FromRow, Sql};
 
+/// Implemented by the result types a query with the columns `Cols` can be read into.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be read from the result of this query",
+    label = "the columns returned by the query do not match `{Self}`",
+    note = "the query returns `{Cols}`",
+    note = "supported result types are primitives, types implementing `SqlType` (e.g. derived \
+            `Enum`s), and structs deriving `FromRow`, each optionally wrapped in `Option` or `Vec`",
+    note = "on stable Rust, column and enum variant names are shown as hashes; a nightly toolchain \
+            shows them as strings"
+)]
 pub trait Query<Cols>: Sized {
     fn query<'a>(
         sql: &'a Sql<'a, Cols, Self>,
