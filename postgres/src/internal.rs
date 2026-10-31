@@ -84,12 +84,6 @@ impl<'a, T> From<&'a [T]> for Valid<'a, [T], Vec<T>> {
     }
 }
 
-impl<T> From<T> for Valid<'_, [T], Vec<T>> {
-    fn from(_: T) -> Self {
-        Self(PhantomData)
-    }
-}
-
 impl<T> From<Vec<T>> for Valid<'_, [T], Vec<T>> {
     fn from(_: Vec<T>) -> Self {
         Self(PhantomData)
@@ -104,12 +98,6 @@ impl<'a, T> From<Option<&'a [T]>> for Valid<'a, [T], Vec<T>> {
 
 impl<T> From<Option<Vec<T>>> for Valid<'_, [T], Vec<T>> {
     fn from(_: Option<Vec<T>>) -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl From<i32> for Valid<'_, i64> {
-    fn from(_: i32) -> Self {
         Self(PhantomData)
     }
 }

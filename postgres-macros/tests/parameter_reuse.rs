@@ -7,7 +7,7 @@ fn parameter_reuse_named() {
     let sql: Sql<'_, _, ()> = sql!(
         "SELECT * FROM users \
          WHERE id > {after} AND id < {after} + 42",
-        after = 8,
+        after = 8i64,
     );
     assert_eq!(
         sql.query,
@@ -24,7 +24,7 @@ fn parameter_reuse_positional() {
     let sql: Sql<'_, _, ()> = sql!(
         "SELECT * FROM users \
          WHERE id > {} AND id < {0} + 42",
-        8,
+        8i64,
     );
     assert_eq!(
         sql.query,
@@ -38,7 +38,7 @@ fn parameter_reuse_positional() {
 
 #[test]
 fn parameter_reuse_variable() {
-    let after = 8;
+    let after = 8i64;
     let sql: Sql<'_, _, ()> = sql!(
         "SELECT * FROM users \
          WHERE id > {after} AND id < {after} + 42",

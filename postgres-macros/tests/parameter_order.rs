@@ -6,8 +6,8 @@ use sqlm_postgres::{Sql, sql};
 fn parameter_order() {
     let sql: Sql<'_, _, ()> = sql!(
         "SELECT * FROM users WHERE id > {after} AND id < {before}",
-        before = 42,
-        after = 0,
+        before = 42i64,
+        after = 0i64,
     );
     assert_eq!(sql.query, "SELECT * FROM users WHERE id > $1 AND id < $2",);
     assert_eq!(
