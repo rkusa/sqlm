@@ -1,5 +1,5 @@
 error[E0271]: type mismatch resolving `<i32 as AsSqlType>::SqlType == i64`
- --> tests/fail/parameter_type_mismatch.rs:3:45
+ --> tests/fail-stable/parameter_type_mismatch.rs:3:45
   |
 3 |     let _: sqlm_postgres::Sql<'_, _, i64> = sqlm_postgres::sql!("SELECT id FROM users WHERE id = {id}");
   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `i64`, found `i32`
