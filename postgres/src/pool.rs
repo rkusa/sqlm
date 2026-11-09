@@ -8,6 +8,17 @@ use tokio_postgres::config::SslMode;
 use crate::error::ErrorKind;
 use crate::{Error, Session};
 
+/// Run before handing out a pooled connection again. Besides checking that the connection is still
+/// alive, it rejects connections that turned read-only, e.g. because their server was demoted to
+/// a standby during a failover. The server keeps the existing connections open in that case, so
+/// without this check, they would keep failing every write until the process is restarted.
+const RECYCLE_CHECK_SQL: &str = "\
+    DO $$ BEGIN \
+        IF pg_is_in_recovery() OR current_setting('transaction_read_only')::bool THEN \
+            RAISE EXCEPTION 'connection is read-only'; \
+        END IF; \
+    END $$";
+
 #[derive(Clone)]
 pub struct Pool(deadpool_postgres::Pool);
 
@@ -18,22 +29,18 @@ impl Pool {
             config.application_name(env!("CARGO_PKG_NAME"));
         }
 
+        let manager_config = || ManagerConfig {
+            recycling_method: RecyclingMethod::Custom(RECYCLE_CHECK_SQL.to_string()),
+        };
+
         // TODO: take all possible SSL variants into account, see e.g.
         // https://github.com/jbg/tokio-postgres-rustls/issues/11
         let mgr = match config.get_ssl_mode() {
-            SslMode::Disable => Manager::from_config(
-                config,
-                NoTls,
-                ManagerConfig {
-                    recycling_method: RecyclingMethod::Fast,
-                },
-            ),
+            SslMode::Disable => Manager::from_config(config, NoTls, manager_config()),
             _ => Manager::from_config(
                 config,
                 tokio_postgres_rustls::MakeRustlsConnect::new(tls_config()),
-                ManagerConfig {
-                    recycling_method: RecyclingMethod::Fast,
-                },
+                manager_config(),
             ),
         };
         let pool = deadpool_postgres::Pool::builder(mgr)
