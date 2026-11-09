@@ -521,11 +521,12 @@ fn connect(database_url: &str) -> Result<Client, String> {
 }
 
 /// A TLS config that encrypts the connection but does not verify the server certificate. Uses the
-/// process-wide default crypto provider if one is installed and falls back to `ring` otherwise.
+/// process-wide default crypto provider if one is installed and falls back to `aws-lc-rs`
+/// otherwise.
 fn tls_config() -> rustls::ClientConfig {
     let crypto_provider = rustls::crypto::CryptoProvider::get_default()
         .cloned()
-        .unwrap_or_else(|| Arc::new(rustls::crypto::ring::default_provider()));
+        .unwrap_or_else(|| Arc::new(rustls::crypto::aws_lc_rs::default_provider()));
     rustls::ClientConfig::builder_with_provider(Arc::clone(&crypto_provider))
         .with_safe_default_protocol_versions()
         .expect("crypto provider supports the default TLS protocol versions")
